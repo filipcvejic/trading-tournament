@@ -1,4 +1,4 @@
-name: Deploy Client to EC2
+name: Deploy Server to EC2
 
 on:
   workflow_dispatch:
@@ -13,9 +13,9 @@ on:
           - staging
 
 env:
-  APP_NAME: trading-client-api
-  BINARY_NAME: client-api
-  SERVICE_NAME: trading-client-api
+  APP_NAME: trading-server-api
+  BINARY_NAME: server-api
+  SERVICE_NAME: trading-server-api
 
 jobs:
   build:
@@ -27,11 +27,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: client/go.mod
-          cache-dependency-path: client/go.sum
+          go-version: '1.22'
 
       - name: Build application
-        working-directory: ./client
+        working-directory: ./server
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ${{ env.BINARY_NAME }}
 
@@ -39,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}
-          path: ./client/${{ env.BINARY_NAME }}
+          path: ./server/${{ env.BINARY_NAME }}
           retention-days: 1
 
   deploy:
@@ -89,7 +88,7 @@ jobs:
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'SERVICE_SCRIPT'
             sudo tee /etc/systemd/system/${{ env.SERVICE_NAME }}.service > /dev/null << 'EOF'
           [Unit]
-          Description=Trading Tournament Client
+          Description=Trading Tournament Server
           After=network.target
 
           [Service]
