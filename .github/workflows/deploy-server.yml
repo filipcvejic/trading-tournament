@@ -84,6 +84,15 @@ jobs:
             sudo chmod +x /usr/local/bin/${{ env.BINARY_NAME }}
           DEPLOY_SCRIPT
 
+      - name: Deploy AWS RDS certificate
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'CERT_SCRIPT'
+            sudo mkdir -p /etc/ssl/certs
+            sudo curl -sS https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+              -o /etc/ssl/certs/rds-ca-bundle.pem
+            sudo chmod 644 /etc/ssl/certs/rds-ca-bundle.pem
+          CERT_SCRIPT
+
       - name: Deploy environment variables
         run: |
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo mkdir -p /etc/${{ env.SERVICE_NAME }}"
@@ -98,6 +107,7 @@ jobs:
           GOOSE_MIGRATION_DIR=${{ secrets.GOOSE_MIGRATION_DIR }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}
+          RDS_CA_BUNDLE=/etc/ssl/certs/rds-ca-bundle.pem
           EOF
 
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo chmod 600 /etc/${{ env.SERVICE_NAME }}/config.env"
