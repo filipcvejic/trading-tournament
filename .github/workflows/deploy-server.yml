@@ -32,7 +32,7 @@ jobs:
       - name: Build application
         working-directory: ./server
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ${{ env.BINARY_NAME }}
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ${{ env.BINARY_NAME }} ./cmd/api
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
