@@ -93,6 +93,12 @@ jobs:
             sudo chmod 644 /etc/ssl/certs/rds-ca-bundle.pem
           CERT_SCRIPT
 
+      - name: Checkout code for migrations
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            server/db/migrations
+
       - name: Deploy environment variables
         run: |
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo mkdir -p /etc/${{ env.SERVICE_NAME }}"
@@ -111,6 +117,33 @@ jobs:
           EOF
 
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo chmod 600 /etc/${{ env.SERVICE_NAME }}/config.env"
+
+      - name: Run database migrations
+        run: |
+          # Upload migration files to EC2
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ~/migrations"
+          scp -i ~/.ssh/ec2_key.pem -r server/db/migrations/* \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/migrations/
+
+          # Install goose if not present and run migrations
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'MIGRATION_SCRIPT'
+            # Install goose if not available
+            if ! command -v goose &> /dev/null; then
+              echo "Installing goose..."
+              curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh
+              sudo mv ./bin/goose /usr/local/bin/goose
+              rm -rf ./bin
+            fi
+
+            echo "Running database migrations..."
+            goose -dir ~/migrations postgres "${{ secrets.DATABASE_URL }}" up
+
+            echo "Migration status:"
+            goose -dir ~/migrations postgres "${{ secrets.DATABASE_URL }}" status
+
+            # Cleanup migration files
+            rm -rf ~/migrations
+          MIGRATION_SCRIPT
 
       - name: Setup systemd service
         run: |
