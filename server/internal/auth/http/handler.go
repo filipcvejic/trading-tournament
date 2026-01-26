@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/filipcvejic/trading_tournament/internal/auth"
 	"github.com/go-chi/chi/v5"
+	"log"
 	"net/http"
 	"time"
 )
@@ -36,12 +37,14 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req auth.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Print(err.Error())
 		http.Error(w, "invalid json body", http.StatusBadRequest)
 		return
 	}
 
 	_, err := h.service.Register(r.Context(), req.Email, req.Username, req.DiscordUsername, req.Password)
 	if err != nil {
+		log.Print(err.Error())
 		writeAuthError(w, err)
 		return
 	}
