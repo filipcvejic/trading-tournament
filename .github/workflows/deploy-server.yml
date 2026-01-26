@@ -55,13 +55,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-          # Configure SSH to use RSA key
-          cat >> ~/.ssh/config << EOF
-          Host ${{ secrets.EC2_HOST }}
+          # Configure SSH with RSA key and skip host key verification for CI
+          cat > ~/.ssh/config << EOF
+          Host *
             IdentityFile ~/.ssh/ec2_key.pem
             IdentitiesOnly yes
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
             PubkeyAcceptedKeyTypes +ssh-rsa
             HostKeyAlgorithms +ssh-rsa
           EOF
