@@ -116,25 +116,29 @@ jobs:
           scp -i ~/.ssh/ec2_key.pem -r server/db/migrations/* \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/migrations/
 
-          # Install goose if not present and run migrations
-          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'MIGRATION_SCRIPT'
-            # Install goose if not available
+          # Install goose if not present
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'INSTALL_SCRIPT'
             if ! command -v goose &> /dev/null; then
               echo "Installing goose..."
-              curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh
-              sudo mv ./bin/goose /usr/local/bin/goose
-              rm -rf ./bin
+              GOOSE_VERSION="v3.24.1"
+              curl -fsSL "https://github.com/pressly/goose/releases/download/${GOOSE_VERSION}/goose_linux_x86_64" -o /tmp/goose
+              sudo mv /tmp/goose /usr/local/bin/goose
+              sudo chmod +x /usr/local/bin/goose
             fi
+            echo "Goose version: $(goose --version)"
+          INSTALL_SCRIPT
 
-            echo "Running database migrations..."
-            goose -dir ~/migrations postgres "${{ secrets.DATABASE_URL }}" up
+          # Run migrations
+          echo "Running database migrations..."
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "goose -dir ~/migrations postgres '${{ secrets.DATABASE_URL }}' up"
 
-            echo "Migration status:"
-            goose -dir ~/migrations postgres "${{ secrets.DATABASE_URL }}" status
+          echo "Migration status:"
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "goose -dir ~/migrations postgres '${{ secrets.DATABASE_URL }}' status"
 
-            # Cleanup migration files
-            rm -rf ~/migrations
-          MIGRATION_SCRIPT
+          # Cleanup migration files
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "rm -rf ~/migrations"
 
       - name: Setup systemd service
         run: |
