@@ -2,15 +2,6 @@ name: Deploy Server to EC2
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: false
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - staging
 
 env:
   APP_NAME: trading-server-api
