@@ -84,34 +84,47 @@ jobs:
             sudo chmod +x /usr/local/bin/${{ env.BINARY_NAME }}
           DEPLOY_SCRIPT
 
+      - name: Deploy environment variables
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo mkdir -p /etc/${{ env.SERVICE_NAME }}"
+
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo tee /etc/${{ env.SERVICE_NAME }}/config.env > /dev/null" << EOF
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          GOOSE_DRIVER=${{ secrets.GOOSE_DRIVER }}
+          GOOSE_DBSTRING=${{ secrets.GOOSE_DBSTRING }}
+          GOOSE_MIGRATION_DIR=${{ secrets.GOOSE_MIGRATION_DIR }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}
+          EOF
+
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo chmod 600 /etc/${{ env.SERVICE_NAME }}/config.env"
+
       - name: Setup systemd service
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'SERVICE_SCRIPT'
-            sudo tee /etc/systemd/system/${{ env.SERVICE_NAME }}.service > /dev/null << 'EOF'
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo tee /etc/systemd/system/${{ env.SERVICE_NAME }}.service > /dev/null" << EOF
           [Unit]
           Description=Trading Tournament Server
           After=network.target
 
           [Service]
           Type=simple
-          User=ec2-user
+          User=root
+          WorkingDirectory=/usr/local/bin
           ExecStart=/usr/local/bin/${{ env.BINARY_NAME }}
+          EnvironmentFile=/etc/${{ env.SERVICE_NAME }}/config.env
           Restart=always
           RestartSec=5
           StandardOutput=journal
           StandardError=journal
 
-          # Environment variables (uncomment and modify as needed)
-          # Environment=APP_ENV=production
-          # EnvironmentFile=/etc/${{ env.SERVICE_NAME }}/config.env
-
           [Install]
           WantedBy=multi-user.target
           EOF
 
-            sudo systemctl daemon-reload
-            sudo systemctl enable ${{ env.SERVICE_NAME }}
-          SERVICE_SCRIPT
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo systemctl daemon-reload && sudo systemctl enable ${{ env.SERVICE_NAME }}"
 
       - name: Start service
         run: |
