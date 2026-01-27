@@ -68,11 +68,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    access,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   60 * 60 * 24,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+		Domain:   ".balkantrd.com",
 	})
 
 	w.WriteHeader(http.StatusNoContent)
