@@ -66,13 +66,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-	    Name:     "access_token",
-	    Value:    access,
-	    HttpOnly: true,
-	    Secure:   true,
-	    SameSite: http.SameSiteNoneMode,
-	    Path:     "/",
-	    MaxAge:   60 * 60 * 24,
+		Name:     "access_token",
+		Value:    access,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   60 * 60 * 24,
 	})
 
 	w.WriteHeader(http.StatusNoContent)

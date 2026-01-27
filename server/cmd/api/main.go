@@ -17,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func loadEnv() {
@@ -30,6 +31,33 @@ func loadEnv() {
 			log.Fatalf("Required environment variable %s is not set", v)
 		}
 	}
+}
+
+func corsMiddlewareFromEnv() func(http.Handler) http.Handler {
+	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	origins := []string{}
+
+	if raw != "" {
+		for _, o := range strings.Split(raw, ",") {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				origins = append(origins, o)
+			}
+		}
+	}
+
+	if len(origins) == 0 {
+		origins = []string{"http://localhost:3000"}
+	}
+
+	return cors.Handler(cors.Options{
+		AllowedOrigins:   origins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	})
 }
 
 func main() {
@@ -62,14 +90,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://main.d11w7ewevo758h.amplifyapp.com"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link", "Set-Cookie"},
-		AllowCredentials: true,
-		MaxAge:           300, // 5 min
-	}))
+	r.Use(corsMiddlewareFromEnv())
 
 	competitionHandler.RegisterRoutes(r)
 	userHandler.RegisterRoutes(r)
