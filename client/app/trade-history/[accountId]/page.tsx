@@ -13,6 +13,8 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
+import LogoutButton from "@/app/components/LogoutButton";
+import BackButton from "@/app/components/BackButton";
 
 type Side = "BUY" | "SELL";
 
@@ -187,6 +189,12 @@ export default function TradingAccountTradeHistoryPage() {
   return (
     <div className="min-h-screen bg-[#0B0C10] text-white">
       {/* background glow */}
+      <div className="absolute top-4 left-4">
+        <BackButton text="Back to competition" />
+      </div>
+      <div className="absolute top-4 right-4">
+        <LogoutButton />
+      </div>
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-[#A855F7]/20 blur-3xl" />
         <div className="absolute -top-10 left-[55%] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-[#60A5FA]/15 blur-3xl" />
