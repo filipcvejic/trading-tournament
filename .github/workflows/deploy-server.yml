@@ -107,6 +107,7 @@ jobs:
           GOOSE_MIGRATION_DIR=${{ secrets.GOOSE_MIGRATION_DIR }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}
+          CORS_ALLOWED_ORIGINS=${{secrets.CORS_ALLOWED_ORIGINS}}
           RDS_CA_BUNDLE=/etc/ssl/certs/rds-ca-bundle.pem
           EOF
 
