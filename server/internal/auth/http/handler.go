@@ -129,11 +129,12 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    "",
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+		Domain:   ".balkantrd.com",
 	})
 
 	w.WriteHeader(http.StatusOK)
