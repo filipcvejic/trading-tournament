@@ -24,7 +24,7 @@ func NewHandler(service *competition.Service) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/competitions", func(r chi.Router) {
 		r.Post("/", h.createCompetition)
-		r.Post("/{competitionID}/account-size", h.updateAccountSize)
+		r.Post("/{competitionID}/members/{accountLogin}/account-size", h.updateAccountSize)
 		r.Post("/{competitionID}/trades", h.insertTrades)
 
 		// protected
@@ -132,13 +132,20 @@ func (h *Handler) updateAccountSize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accountLoginStr := chi.URLParam(r, "accountLogin")
+	accountLogin, err := strconv.ParseInt(accountLoginStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid account id", http.StatusBadRequest)
+		return
+	}
+
 	var req dto.UpdateAccountSizeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json body", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.UpdateAccountSize(r.Context(), competitionID, req.TradingAccountLogin, req.AccountSize); err != nil {
+	if err := h.service.UpdateAccountSize(r.Context(), competitionID, accountLogin, req.AccountSize); err != nil {
 		writeCompetitionError(w, err)
 		return
 	}

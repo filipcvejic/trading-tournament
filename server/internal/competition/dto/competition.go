@@ -25,8 +25,7 @@ type JoinCompetitionRequest struct {
 }
 
 type UpdateAccountSizeRequest struct {
-	TradingAccountLogin int64   `json:"tradingAccountLogin"`
-	AccountSize         float64 `json:"accountSize"`
+	AccountSize float64 `json:"accountSize"`
 }
 
 type CompetitionUserStateResponse struct {

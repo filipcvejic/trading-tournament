@@ -15,7 +15,6 @@ SET account_size = $3
 WHERE competition_id = $1
 AND trading_account_login = $2;
 
-
 -- name: GetCompetitionMemberAccountSize :one
 SELECT account_size
 FROM competition_members
