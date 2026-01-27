@@ -108,6 +108,7 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}
           CORS_ALLOWED_ORIGINS=${{secrets.CORS_ALLOWED_ORIGINS}}
+          ENV=${{secrets.ENV}}
           RDS_CA_BUNDLE=/etc/ssl/certs/rds-ca-bundle.pem
           EOF
 
