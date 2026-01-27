@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"github.com/filipcvejic/trading_tournament/internal/auth"
+	"github.com/filipcvejic/trading_tournament/internal/config"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
@@ -65,17 +66,24 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    access,
 		Path:     "/",
 		MaxAge:   60 * 60 * 24,
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
-		Domain:   ".balkantrd.com",
-	})
+	}
 
+	if config.IsProduction() {
+		cookie.Secure = true
+		cookie.Domain = ".balkantrd.com"
+		cookie.SameSite = http.SameSiteNoneMode
+	} else {
+		cookie.Secure = false
+		cookie.SameSite = http.SameSiteLaxMode
+	}
+
+	http.SetCookie(w, cookie)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -126,18 +134,25 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 //}
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
-		Domain:   ".balkantrd.com",
-	})
+	}
 
-	w.WriteHeader(http.StatusOK)
+	if config.IsProduction() {
+		cookie.Secure = true
+		cookie.Domain = ".balkantrd.com"
+		cookie.SameSite = http.SameSiteNoneMode
+	} else {
+		cookie.Secure = false
+		cookie.SameSite = http.SameSiteLaxMode
+	}
+
+	http.SetCookie(w, cookie)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {

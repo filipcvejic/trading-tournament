@@ -94,6 +94,8 @@ func (r *PostgresRepository) GetTradeHistory(
 			OpenPrice:  row.OpenPrice,
 			ClosePrice: row.ClosePrice,
 			Profit:     row.Profit,
+			Commission: row.Commission,
+			Swap:       row.Swap,
 		})
 	}
 

@@ -34,4 +34,6 @@ type TradeDTO struct {
 	OpenPrice  float64   `json:"openPrice"`
 	ClosePrice float64   `json:"closePrice"`
 	Profit     float64   `json:"profit"`
+	Commission float64   `json:"commission"`
+	Swap       float64   `json:"swap"`
 }
