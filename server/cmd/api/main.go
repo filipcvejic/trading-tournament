@@ -33,33 +33,6 @@ func loadEnv() {
 	}
 }
 
-func corsMiddlewareFromEnv() func(http.Handler) http.Handler {
-	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
-	origins := []string{}
-
-	if raw != "" {
-		for _, o := range strings.Split(raw, ",") {
-			o = strings.TrimSpace(o)
-			if o != "" {
-				origins = append(origins, o)
-			}
-		}
-	}
-
-	if len(origins) == 0 {
-		origins = []string{"http://localhost:3000"}
-	}
-
-	return cors.Handler(cors.Options{
-		AllowedOrigins:   origins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	})
-}
-
 func main() {
 	loadEnv()
 
@@ -90,7 +63,17 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(corsMiddlewareFromEnv())
+
+	origins := strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ",")
+
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   origins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	competitionHandler.RegisterRoutes(r)
 	userHandler.RegisterRoutes(r)
