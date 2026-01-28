@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { webApi } from "../lib/api/client";
 
-/* ---------- validation helpers ---------- */
+/* ---------- FE validation helpers (UX only) ---------- */
 
 function validatePassword(pw: string) {
   return {
@@ -21,11 +21,10 @@ function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function validateUsername(username: string) {
-  if (username.length < 3) return "At least 3 characters";
-  if (username.length > 20) return "Max 20 characters";
-  if (!/^[a-zA-Z0-9_]+$/.test(username))
-    return "Only letters, numbers and underscore";
+function validateNoWhitespaceMinMax(value: string, min: number, max: number) {
+  if (value.length < min) return `At least ${min} characters`;
+  if (value.length > max) return `Max ${max} characters`;
+  if (/\s/.test(value)) return "Must not contain whitespace";
   return null;
 }
 
@@ -36,7 +35,6 @@ export default function Register() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     username: "",
@@ -47,13 +45,16 @@ export default function Register() {
   });
 
   const usernameError = useMemo(
-    () => (form.username ? validateUsername(form.username) : null),
+    () =>
+      form.username ? validateNoWhitespaceMinMax(form.username, 3, 20) : null,
     [form.username],
   );
 
   const discordUsernameError = useMemo(
     () =>
-      form.discordUsername ? validateUsername(form.discordUsername) : null,
+      form.discordUsername
+        ? validateNoWhitespaceMinMax(form.discordUsername, 2, 32)
+        : null,
     [form.discordUsername],
   );
 
@@ -79,17 +80,13 @@ export default function Register() {
     !discordUsernameError &&
     passwordValid &&
     confirmValid &&
-    form.email.length > 0;
-
-  /* ---------- submit ---------- */
+    emailValid;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
 
     setLoading(true);
-    setError("");
-
     try {
       await webApi.post("/auth/register", {
         username: form.username,
@@ -100,25 +97,24 @@ export default function Register() {
 
       router.push("/login");
     } catch {
-      setError("Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  /* ---------- UI ---------- */
-
   return (
-    <div className="bg-[#1e1e1e] min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen bg-[#0B0C12] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#151621]/80 backdrop-blur p-6 space-y-6">
         {/* Header */}
-        <div className="space-y-2 text-center">
-          <h1 className="text-5xl font-semibold">Create profile</h1>
-          <p className="text-sm text-gray-300">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-semibold text-white">
+            Create profile
+          </h1>
+          <p className="text-sm text-[#A1A1AA]">
             Already have an account?{" "}
             <Link
               href="/login"
-              className="text-[#83c0ff] underline underline-offset-4 hover:opacity-80 transition"
+              className="text-[#60A5FA] underline underline-offset-4 hover:opacity-80 transition"
             >
               Log in
             </Link>
@@ -129,7 +125,9 @@ export default function Register() {
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Username */}
           <div className="space-y-1.5">
-            <label className="block font-medium">Username</label>
+            <label className="block mb-1.5 text-sm font-medium text-[#C7D2FE]">
+              Username
+            </label>
             <input
               value={form.username}
               onChange={(e) =>
@@ -137,18 +135,24 @@ export default function Register() {
               }
               className="
                 w-full rounded-xl px-3 py-2
-                bg-[#36373b] border-2 border-transparent
-                focus:border-[#83c0ff] focus:outline-none transition
+                bg-[#0F1016]/80 border border-white/10
+                text-white placeholder:text-white/30
+                focus:outline-none focus:ring-2 focus:ring-[#60A5FA]/60
+                transition
               "
               required
+              placeholder="Username"
             />
             {usernameError && (
               <p className="text-xs text-red-400">{usernameError}</p>
             )}
           </div>
 
+          {/* Discord username */}
           <div className="space-y-1.5">
-            <label className="block font-medium">Discord username</label>
+            <label className="block mb-1.5 text-sm font-medium text-[#C7D2FE]">
+              Discord username
+            </label>
             <input
               value={form.discordUsername}
               onChange={(e) =>
@@ -156,10 +160,13 @@ export default function Register() {
               }
               className="
                 w-full rounded-xl px-3 py-2
-                bg-[#36373b] border-2 border-transparent
-                focus:border-[#83c0ff] focus:outline-none transition
+                bg-[#0F1016]/80 border border-white/10
+                text-white placeholder:text-white/30
+                focus:outline-none focus:ring-2 focus:ring-[#A855F7]/60
+                transition
               "
               required
+              placeholder="Discord username"
             />
             {discordUsernameError && (
               <p className="text-xs text-red-400">{discordUsernameError}</p>
@@ -168,7 +175,9 @@ export default function Register() {
 
           {/* Email */}
           <div className="space-y-1.5">
-            <label className="block font-medium">Email</label>
+            <label className="block mb-1.5 text-sm font-medium text-[#C7D2FE]">
+              Email
+            </label>
             <input
               type="email"
               value={form.email}
@@ -176,13 +185,15 @@ export default function Register() {
                 setForm((p) => ({ ...p, email: e.target.value }))
               }
               className="
-      w-full rounded-xl px-3 py-2
-      bg-[#36373b] border-2 border-transparent
-      focus:border-[#83c0ff] focus:outline-none transition
-    "
+                w-full rounded-xl px-3 py-2
+                bg-[#0F1016]/80 border border-white/10
+                text-white placeholder:text-white/30
+                focus:outline-none focus:ring-2 focus:ring-[#60A5FA]/60
+                transition
+              "
               required
+              placeholder="Email"
             />
-
             {form.email.length > 0 && !emailValid && (
               <p className="text-xs text-red-400">
                 Please enter a valid email address
@@ -192,7 +203,9 @@ export default function Register() {
 
           {/* Password */}
           <div className="space-y-1.5">
-            <label className="block font-medium">Password</label>
+            <label className="block mb-1.5 text-sm font-medium text-[#C7D2FE]">
+              Password
+            </label>
 
             <div className="relative">
               <input
@@ -203,36 +216,36 @@ export default function Register() {
                 }
                 className="
                   w-full rounded-xl px-3 py-2 pr-10
-                  bg-[#36373b] border-2 border-transparent
-                  focus:border-[#83c0ff] focus:outline-none transition
+                  bg-[#0F1016]/80 border border-white/10
+                  text-white placeholder:text-white/30
+                  focus:outline-none focus:ring-2 focus:ring-[#A855F7]/60
+                  transition
                 "
                 required
+                placeholder="Password"
               />
 
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="
-                  absolute inset-y-0 right-3 flex items-center
-                  text-gray-400 hover:text-white transition
-                "
+                className="absolute inset-y-0 right-3 flex items-center text-white/40 hover:text-white transition"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
 
-            {/* Password rules */}
-            <ul className="mt-2 space-y-1 text-xs text-gray-300">
-              <li className={pwRules.length ? "text-green-400" : ""}>
+            <ul className="mt-2 space-y-1 text-xs text-[#A1A1AA]">
+              <li className={pwRules.length ? "text-[#BFDBFE]" : ""}>
                 {pwRules.length ? "✓" : "•"} At least 11 characters
               </li>
-              <li className={pwRules.lower ? "text-green-400" : ""}>
+              <li className={pwRules.lower ? "text-[#BFDBFE]" : ""}>
                 {pwRules.lower ? "✓" : "•"} 1 lowercase letter
               </li>
-              <li className={pwRules.upper ? "text-green-400" : ""}>
+              <li className={pwRules.upper ? "text-[#BFDBFE]" : ""}>
                 {pwRules.upper ? "✓" : "•"} 1 uppercase letter
               </li>
-              <li className={pwRules.special ? "text-green-400" : ""}>
+              <li className={pwRules.special ? "text-[#BFDBFE]" : ""}>
                 {pwRules.special ? "✓" : "•"} 1 special character
               </li>
             </ul>
@@ -240,7 +253,9 @@ export default function Register() {
 
           {/* Confirm password */}
           <div className="space-y-1.5">
-            <label className="block font-medium">Confirm password</label>
+            <label className="block mb-1.5 text-sm font-medium text-[#C7D2FE]">
+              Confirm password
+            </label>
             <input
               type={showPassword ? "text" : "password"}
               value={form.confirmPassword}
@@ -249,28 +264,28 @@ export default function Register() {
               }
               className="
                 w-full rounded-xl px-3 py-2
-                bg-[#36373b] border-2 border-transparent
-                focus:border-[#83c0ff] focus:outline-none transition
+                bg-[#0F1016]/80 border border-white/10
+                text-white placeholder:text-white/30
+                focus:outline-none focus:ring-2 focus:ring-[#60A5FA]/60
+                transition
               "
               required
+              placeholder="Confirm password"
             />
             {form.confirmPassword.length > 0 && !confirmValid && (
               <p className="text-xs text-red-400">Passwords do not match</p>
             )}
           </div>
 
-          {/* Error */}
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
           {/* Submit */}
           <button
             type="submit"
             disabled={!canSubmit}
             className="
-              w-full rounded-sm py-2.5
-              bg-[#0781fe] font-medium
+              w-full rounded-sm py-3 font-semibold
+              bg-gradient-to-r from-[#A855F7] to-[#60A5FA]
               hover:opacity-90 transition
-              disabled:opacity-60 disabled:cursor-not-allowed
+              disabled:opacity-50 disabled:cursor-not-allowed
             "
           >
             {loading ? "Creating..." : "Create profile"}

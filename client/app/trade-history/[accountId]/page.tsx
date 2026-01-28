@@ -142,7 +142,7 @@ export default function TradingAccountTradeHistoryPage() {
       } catch (e: any) {
         if (!alive) return;
         setError(
-          e?.response?.data?.message ||
+          e?.response?.data?.error ||
             e?.message ||
             "Failed to load trade history.",
         );
@@ -189,10 +189,8 @@ export default function TradingAccountTradeHistoryPage() {
   return (
     <div className="min-h-screen bg-[#0B0C10] text-white">
       {/* background glow */}
-      <div className="absolute top-4 left-4">
+      <div className="flex justify-between pt-4 px-4">
         <BackButton text="Back to competition" />
-      </div>
-      <div className="absolute top-4 right-4">
         <LogoutButton />
       </div>
       <div className="pointer-events-none fixed inset-0">

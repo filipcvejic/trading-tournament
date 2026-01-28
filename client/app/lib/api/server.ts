@@ -9,6 +9,7 @@ export async function getServerApi() {
 
   return axios.create({
     baseURL,
+    timeout: 15000,
     headers: token ? { Cookie: `access_token=${token}` } : undefined,
   });
 }

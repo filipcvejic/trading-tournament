@@ -2,7 +2,7 @@ import Image from "next/image";
 import JoinPanel from "./JoinPanel";
 import LeaderboardTable from "./LeaderboardTable";
 import { getServerApi } from "@/app/lib/api/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import LogoutButton from "@/app/components/LogoutButton";
 
 function isStarted(startsAt: string) {
@@ -17,16 +17,17 @@ export default async function CompetitionPage({
 }: {
   params: { id: string };
 }) {
+  const api = await getServerApi();
   const { id } = await params;
 
   if (!id || id.length < 10) notFound();
 
-  const api = await getServerApi();
-
   const [{ data: competition }, { data: me }] = await Promise.all([
     api.get(`/competitions/${id}`),
     api.get(`/competitions/${id}/me`),
-  ]);
+  ]).catch(() => {
+    redirect("/competition");
+  });
 
   const started = isStarted(competition.startsAt);
   const ended = isEnded(competition.endsAt);
@@ -34,7 +35,7 @@ export default async function CompetitionPage({
   return (
     <div className="min-h-screen bg-[#0B0C10] text-white">
       {/* subtle neon glow */}
-      <div className="absolute top-4 right-4">
+      <div className="flex pt-4 px-4 justify-end">
         <LogoutButton />
       </div>
       <div className="pointer-events-none fixed inset-0 opacity-60">

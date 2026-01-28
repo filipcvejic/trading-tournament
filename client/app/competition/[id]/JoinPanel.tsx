@@ -108,6 +108,7 @@ export default function JoinPanel({
       setShowJoin(false);
       setNotice(NOTICE_JOINED);
       e.currentTarget.reset();
+    } catch {
     } finally {
       setLoading(false);
     }

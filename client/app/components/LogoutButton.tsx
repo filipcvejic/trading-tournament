@@ -15,6 +15,7 @@ export default function LogoutButton() {
       await webApi.post("/auth/logout");
       router.replace("/login");
       router.refresh();
+    } catch {
     } finally {
       setLoading(false);
     }
