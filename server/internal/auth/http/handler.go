@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"github.com/filipcvejic/trading_tournament/internal/auth"
 	"github.com/filipcvejic/trading_tournament/internal/config"
+	"github.com/filipcvejic/trading_tournament/internal/httputil"
+	"github.com/filipcvejic/trading_tournament/internal/validation"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
@@ -39,14 +41,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req auth.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Print(err)
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
+		return
+	}
+
+	if err := validation.V.Struct(req); err != nil {
+		httputil.WriteClientError(w, r, validation.FirstMessage(err), err)
 		return
 	}
 
 	_, err := h.service.Register(r.Context(), req.Email, req.Username, req.DiscordUsername, req.Password)
 	if err != nil {
 		log.Print(err)
-		writeAuthError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -56,13 +63,18 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req auth.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
+		return
+	}
+
+	if err := validation.V.Struct(req); err != nil {
+		httputil.WriteClientError(w, r, validation.FirstMessage(err), err)
 		return
 	}
 
 	access, err := h.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		writeAuthError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -158,16 +170,15 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.WriteUnauthorized(w, r)
 		return
 	}
 
 	user, err := h.service.Me(r.Context(), userID)
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(user)
+	httputil.WriteJSON(w, http.StatusOK, user)
 }

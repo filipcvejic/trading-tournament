@@ -3,7 +3,7 @@ package user
 import "errors"
 
 var (
-	ErrUserNotFound                 = errors.New("user not found")
+	ErrNotFound                     = errors.New("user not found")
 	ErrInvalidEmail                 = errors.New("invalid email")
 	ErrInvalidUsername              = errors.New("invalid username")
 	ErrInvalidDiscordUsername       = errors.New("invalid discord username")

@@ -35,20 +35,20 @@ func (s *AuthService) Register(ctx context.Context, email, username, discordUser
 		return nil, err
 	}
 
-	user, err := s.userRepo.Create(ctx, email, username, discordUsername, hashedPassword)
+	u, err := s.userRepo.Create(ctx, email, username, discordUsername, hashedPassword)
 	if err == nil {
-		return &user, nil
+		return &u, nil
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		switch pgErr.ConstraintName {
 		case "users_email_unique":
-			return nil, ErrEmailInUse
+			return nil, user.ErrEmailAlreadyExists
 		case "users_username_unique":
-			return nil, ErrUsernameInUse
+			return nil, user.ErrUsernameAlreadyExists
 		case "users_discord_username_unique":
-			return nil, ErrDiscordUsernameInUse
+			return nil, user.ErrDiscordUsernameAlreadyExists
 		}
 	}
 

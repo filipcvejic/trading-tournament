@@ -3,6 +3,7 @@ package tradingaccount
 import (
 	"context"
 	"errors"
+	"github.com/filipcvejic/trading_tournament/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"strings"
@@ -27,7 +28,7 @@ func (s *Service) Create(
 		return TradingAccount{}, ErrInvalidLogin
 	}
 	if userID == uuid.Nil {
-		return TradingAccount{}, ErrInvalidUserID
+		return TradingAccount{}, user.ErrNotFound
 	}
 	if broker == "" || strings.TrimSpace(broker) != broker {
 		return TradingAccount{}, ErrInvalidBroker
@@ -45,9 +46,9 @@ func (s *Service) Create(
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "23505":
-			return TradingAccount{}, ErrLoginAlreadyExists
+			return TradingAccount{}, ErrLoginTaken
 		case "23503":
-			return TradingAccount{}, ErrUserNotFound
+			return TradingAccount{}, user.ErrNotFound
 		}
 	}
 

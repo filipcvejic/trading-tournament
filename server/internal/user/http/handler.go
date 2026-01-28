@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"github.com/filipcvejic/trading_tournament/internal/httputil"
 	"github.com/filipcvejic/trading_tournament/internal/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -26,27 +27,23 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 	var req user.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
 		return
 	}
 
 	u, err := h.service.Create(r.Context(), req.Email, req.Username, req.DiscordUsername, req.Password)
 	if err != nil {
-		writeUserError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := user.UserResponse{
+	httputil.WriteJSON(w, http.StatusCreated, user.UserResponse{
 		ID:        u.ID.String(),
 		Email:     u.Email,
 		Username:  u.Username,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func (h *Handler) getUserByID(w http.ResponseWriter, r *http.Request) {
@@ -59,19 +56,16 @@ func (h *Handler) getUserByID(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		writeUserError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := user.UserResponse{
+	httputil.WriteJSON(w, http.StatusOK, user.UserResponse{
 		ID:              u.ID.String(),
 		Email:           u.Email,
 		Username:        u.Username,
 		DiscordUsername: u.DiscordUsername,
 		CreatedAt:       u.CreatedAt,
 		UpdatedAt:       u.UpdatedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }

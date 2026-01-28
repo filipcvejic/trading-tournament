@@ -52,7 +52,7 @@ func (r *PostgresRepository) GetByLogin(ctx context.Context, login int64) (Tradi
 	row, err := r.db.Query.GetTradingAccountByLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return TradingAccount{}, ErrTradingAccountNotFound
+			return TradingAccount{}, ErrNotFound
 		}
 		return TradingAccount{}, err
 	}
@@ -72,7 +72,7 @@ func (r *PostgresRepository) GetTradeHistory(
 	username, err := r.db.Query.GetUsernameByTradingAccountLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil, ErrTradingAccountNotFound
+			return "", nil, ErrNotFound
 		}
 		return "", nil, err
 	}

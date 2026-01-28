@@ -6,10 +6,10 @@ import (
 )
 
 type CreateTradingAccountRequest struct {
-	Login            int64     `json:"login"`
+	Login            int64     `json:"login" validate:"required,min=10000"`
 	UserID           uuid.UUID `json:"userId"`
-	Broker           string    `json:"broker"`
-	InvestorPassword string    `json:"investorPassword"`
+	Broker           string    `json:"broker" validate:"required,min=2"`
+	InvestorPassword string    `json:"investorPassword" validate:"required,min=5"`
 }
 
 type TradingAccountResponse struct {

@@ -2,15 +2,17 @@ package http
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/filipcvejic/trading_tournament/internal/auth"
 	"github.com/filipcvejic/trading_tournament/internal/competition"
 	"github.com/filipcvejic/trading_tournament/internal/competition/dto"
 	"github.com/filipcvejic/trading_tournament/internal/competition/mapper"
 	"github.com/filipcvejic/trading_tournament/internal/competition/model"
+	"github.com/filipcvejic/trading_tournament/internal/httputil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"net/http"
-	"strconv"
 )
 
 type Handler struct {
@@ -27,7 +29,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/{competitionID}/members/{accountLogin}/account-size", h.updateAccountSize)
 		r.Post("/{competitionID}/trades", h.insertTrades)
 
-		// protected
 		r.Group(func(r chi.Router) {
 			r.Use(auth.AuthenticationMiddleware)
 			r.Get("/{competitionID}", h.getCompetitionByID)
@@ -43,7 +44,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func (h *Handler) createCompetition(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateCompetitionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
 		return
 	}
 
@@ -55,69 +56,60 @@ func (h *Handler) createCompetition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.Create(r.Context(), c); err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := dto.CompetitionResponse{
+	httputil.WriteJSON(w, http.StatusCreated, dto.CompetitionResponse{
 		ID:       c.ID,
 		Name:     c.Name,
 		StartsAt: c.StartsAt,
 		EndsAt:   c.EndsAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func (h *Handler) getCompetitionByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "competitionID")
-	id, err := uuid.Parse(idStr)
+	id, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
 	c, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := dto.CompetitionResponse{
+	httputil.WriteJSON(w, http.StatusOK, dto.CompetitionResponse{
 		ID:       c.ID,
 		Name:     c.Name,
 		StartsAt: c.StartsAt,
 		EndsAt:   c.EndsAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func (h *Handler) joinCompetition(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(idStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
 	userID, ok := auth.GetUserID(r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.WriteUnauthorized(w, r)
 		return
 	}
 
 	var req dto.JoinCompetitionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
 		return
 	}
 
 	if err := h.service.JoinWithTradingAccount(r.Context(), competitionID, userID, req.Login, req.Broker, req.InvestorPassword); err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -125,28 +117,26 @@ func (h *Handler) joinCompetition(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateAccountSize(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(idStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
-	accountLoginStr := chi.URLParam(r, "accountLogin")
-	accountLogin, err := strconv.ParseInt(accountLoginStr, 10, 64)
+	accountLogin, err := strconv.ParseInt(chi.URLParam(r, "accountLogin"), 10, 64)
 	if err != nil {
-		http.Error(w, "invalid account id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid account login format", err)
 		return
 	}
 
 	var req dto.UpdateAccountSizeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
 		return
 	}
 
 	if err := h.service.UpdateAccountSize(r.Context(), competitionID, accountLogin, req.AccountSize); err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -154,20 +144,18 @@ func (h *Handler) updateAccountSize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLeaderboard(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(idStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
-	var limit int32
-	var offset int32
+	var limit, offset int32
 
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 0 {
-			http.Error(w, "invalid limit", http.StatusBadRequest)
+			httputil.WriteClientError(w, r, "Invalid limit parameter", err)
 			return
 		}
 		limit = int32(n)
@@ -176,7 +164,7 @@ func (h *Handler) getLeaderboard(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("offset"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 0 {
-			http.Error(w, "invalid offset", http.StatusBadRequest)
+			httputil.WriteClientError(w, r, "Invalid offset parameter", err)
 			return
 		}
 		offset = int32(n)
@@ -184,31 +172,29 @@ func (h *Handler) getLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := h.service.GetLeaderboard(r.Context(), competitionID, limit, offset)
 	if err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(mapper.LeaderboardToDTO(entries))
+	httputil.WriteJSON(w, http.StatusOK, mapper.LeaderboardToDTO(entries))
 }
 
 func (h *Handler) insertTrades(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(idStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
 	var req dto.InsertTradesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
 		return
 	}
 
-	trades := make([]model.Trade, 0, len(req.Trades))
-	for _, it := range req.Trades {
-		trades = append(trades, model.Trade{
+	trades := make([]model.Trade, len(req.Trades))
+	for i, it := range req.Trades {
+		trades[i] = model.Trade{
 			PositionID: it.PositionID,
 			Symbol:     it.Symbol,
 			Side:       it.Side,
@@ -220,11 +206,11 @@ func (h *Handler) insertTrades(w http.ResponseWriter, r *http.Request) {
 			Profit:     it.Profit,
 			Commission: it.Commission,
 			Swap:       it.Swap,
-		})
+		}
 	}
 
 	if err := h.service.InsertTrades(r.Context(), competitionID, req.TradingAccountLogin, trades); err != nil {
-		writeCompetitionError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -232,59 +218,54 @@ func (h *Handler) insertTrades(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getMe(w http.ResponseWriter, r *http.Request) {
-	competitionIDStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(competitionIDStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
 	userID, ok := auth.GetUserID(r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.WriteUnauthorized(w, r)
 		return
 	}
 
 	state, err := h.service.GetUserCompetitionState(r.Context(), userID, competitionID)
 	if err != nil {
-		http.Error(w, "failed to fetch state", http.StatusInternalServerError)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(state)
+	httputil.WriteJSON(w, http.StatusOK, state)
 }
 
 func (h *Handler) getCurrent(w http.ResponseWriter, r *http.Request) {
 	comp, err := h.service.GetCurrentCompetition(r.Context())
 	if err != nil {
-		http.Error(w, "competition not found", http.StatusNotFound)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(comp)
+	httputil.WriteJSON(w, http.StatusOK, comp)
 }
 
 func (h *Handler) requestAccount(w http.ResponseWriter, r *http.Request) {
-	competitionIDStr := chi.URLParam(r, "competitionID")
-	competitionID, err := uuid.Parse(competitionIDStr)
+	competitionID, err := uuid.Parse(chi.URLParam(r, "competitionID"))
 	if err != nil {
-		http.Error(w, "invalid competition id", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid competition ID format", err)
 		return
 	}
 
 	userID, ok := auth.GetUserID(r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.WriteUnauthorized(w, r)
 		return
 	}
 
 	if err := h.service.RequestAccount(r.Context(), userID, competitionID); err != nil {
-		http.Error(w, "failed to request account", http.StatusInternalServerError)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	httputil.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

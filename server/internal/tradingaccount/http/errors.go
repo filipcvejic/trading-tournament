@@ -3,27 +3,56 @@ package http
 import (
 	"errors"
 	"github.com/filipcvejic/trading_tournament/internal/tradingaccount"
+	"github.com/filipcvejic/trading_tournament/internal/user"
 	"net/http"
+
+	"github.com/filipcvejic/trading_tournament/internal/auth"
+	"github.com/filipcvejic/trading_tournament/internal/httputil"
 )
 
-func writeTradingAccountError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, tradingaccount.ErrTradingAccountNotFound):
-		http.Error(w, err.Error(), http.StatusNotFound)
+type errorMapping struct {
+	status  int
+	message string
+}
 
-	case errors.Is(err, tradingaccount.ErrLoginAlreadyExists):
-		http.Error(w, err.Error(), http.StatusConflict)
+var errorMap = map[error]errorMapping{
+	// Not Found (404)
+	tradingaccount.ErrNotFound: {http.StatusNotFound, "Trading account not found"},
+	user.ErrNotFound:           {http.StatusNotFound, "User not found"},
 
-	case errors.Is(err, tradingaccount.ErrUserNotFound):
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Conflict (409)
+	tradingaccount.ErrLoginTaken: {
+		http.StatusConflict,
+		"Trading account with this login already exists",
+	},
 
-	case errors.Is(err, tradingaccount.ErrInvalidLogin),
-		errors.Is(err, tradingaccount.ErrInvalidUserID),
-		errors.Is(err, tradingaccount.ErrInvalidBroker),
-		errors.Is(err, tradingaccount.ErrInvalidInvestorPassword):
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Bad Request (400)
+	tradingaccount.ErrInvalidLogin: {
+		http.StatusBadRequest,
+		"Login must be at least 5 digits",
+	},
+	tradingaccount.ErrInvalidBroker: {
+		http.StatusBadRequest,
+		"Broker name must be at least 2 characters",
+	},
+	tradingaccount.ErrInvalidInvestorPassword: {
+		http.StatusBadRequest,
+		"Investor password must be at least 5 characters",
+	},
 
-	default:
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+	// Auth errors
+	auth.ErrUnauthorized: {http.StatusUnauthorized, "Unauthorized"},
+}
+
+// writeDomainError maps domain errors to HTTP responses
+func writeDomainError(w http.ResponseWriter, r *http.Request, err error) {
+	for domainErr, mapping := range errorMap {
+		if errors.Is(err, domainErr) {
+			httputil.WriteError(w, r, mapping.status, mapping.message, err)
+			return
+		}
 	}
+
+	// Unknown error
+	httputil.WriteInternalError(w, r, err)
 }

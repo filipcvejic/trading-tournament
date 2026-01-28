@@ -59,14 +59,14 @@ func (s *Service) Create(ctx context.Context, email, username, discordUsername, 
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (User, error) {
 	if id == uuid.Nil {
-		return User{}, ErrUserNotFound
+		return User{}, ErrNotFound
 	}
 	return s.repo.GetByID(ctx, id)
 }
 
 func (s *Service) GetByEmail(ctx context.Context, email string) (User, error) {
 	if email == "" {
-		return User{}, ErrUserNotFound
+		return User{}, ErrNotFound
 	}
 	return s.repo.GetByEmail(ctx, email)
 }

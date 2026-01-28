@@ -51,7 +51,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (User, e
 	row, err := r.db.Query.GetUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return User{}, ErrUserNotFound
+			return User{}, ErrNotFound
 		}
 		return User{}, err
 	}
@@ -70,7 +70,7 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User
 	row, err := r.db.Query.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return User{}, ErrUserNotFound
+			return User{}, ErrNotFound
 		}
 		return User{}, err
 	}

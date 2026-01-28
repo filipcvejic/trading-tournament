@@ -2,7 +2,9 @@ package http
 
 import (
 	"encoding/json"
+	"github.com/filipcvejic/trading_tournament/internal/httputil"
 	"github.com/filipcvejic/trading_tournament/internal/tradingaccount"
+	"github.com/filipcvejic/trading_tournament/internal/validation"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
@@ -27,7 +29,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func (h *Handler) createTradingAccount(w http.ResponseWriter, r *http.Request) {
 	var req tradingaccount.CreateTradingAccountRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json body", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid JSON body", err)
+		return
+	}
+
+	if err := validation.V.Struct(req); err != nil {
+		httputil.WriteClientError(w, r, validation.FirstMessage(err), err)
 		return
 	}
 
@@ -39,61 +46,53 @@ func (h *Handler) createTradingAccount(w http.ResponseWriter, r *http.Request) {
 		req.InvestorPassword,
 	)
 	if err != nil {
-		writeTradingAccountError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := tradingaccount.TradingAccountResponse{
+	httputil.WriteJSON(w, http.StatusCreated, tradingaccount.TradingAccountResponse{
 		Login:     acc.Login,
 		UserID:    acc.UserID,
 		Broker:    acc.Broker,
 		CreatedAt: acc.CreatedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func (h *Handler) getByLogin(w http.ResponseWriter, r *http.Request) {
 	loginStr := chi.URLParam(r, "login")
 	login, err := strconv.ParseInt(loginStr, 10, 64)
 	if err != nil || login <= 0 {
-		http.Error(w, "invalid login", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid login format", err)
 		return
 	}
 
 	acc, err := h.service.GetByLogin(r.Context(), login)
 	if err != nil {
-		writeTradingAccountError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	resp := tradingaccount.TradingAccountResponse{
+	httputil.WriteJSON(w, http.StatusOK, tradingaccount.TradingAccountResponse{
 		Login:     acc.Login,
 		UserID:    acc.UserID,
 		Broker:    acc.Broker,
 		CreatedAt: acc.CreatedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	})
 }
 
 func (h *Handler) getTradeHistory(w http.ResponseWriter, r *http.Request) {
 	loginStr := chi.URLParam(r, "login")
 	login, err := strconv.ParseInt(loginStr, 10, 64)
 	if err != nil || login <= 0 {
-		http.Error(w, "invalid login", http.StatusBadRequest)
+		httputil.WriteClientError(w, r, "Invalid login format", err)
 		return
 	}
 
 	resp, err := h.service.GetTradeHistory(r.Context(), login)
 	if err != nil {
-		writeTradingAccountError(w, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }

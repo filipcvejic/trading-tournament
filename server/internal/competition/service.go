@@ -3,12 +3,14 @@ package competition
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"strings"
+
 	"github.com/filipcvejic/trading_tournament/internal/auth"
 	"github.com/filipcvejic/trading_tournament/internal/competition/dto"
 	"github.com/filipcvejic/trading_tournament/internal/competition/model"
 	"github.com/filipcvejic/trading_tournament/internal/crypto"
 	"github.com/google/uuid"
-	"strings"
 )
 
 type Service struct {
@@ -19,7 +21,7 @@ type Service struct {
 func NewService(repo Repository, cryptoKeyBase64 string) (*Service, error) {
 	key, err := base64.StdEncoding.DecodeString(cryptoKeyBase64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode crypto key: %w", err)
 	}
 	if len(key) != 32 {
 		return nil, crypto.ErrInvalidKeyLength
@@ -27,29 +29,29 @@ func NewService(repo Repository, cryptoKeyBase64 string) (*Service, error) {
 	return &Service{repo: repo, cryptoKey: key}, nil
 }
 
-func (s *Service) Create(
-	ctx context.Context,
-	c model.Competition,
-) error {
+func (s *Service) Create(ctx context.Context, c model.Competition) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}
 
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
-		return ErrInvalidCompetitionName
+		return ErrInvalidName
 	}
 
 	if !c.EndsAt.After(c.StartsAt) {
-		return ErrInvalidCompetitionTimeRange
+		return ErrInvalidTimeRange
 	}
 
-	return s.repo.Create(ctx, c)
+	if err := s.repo.Create(ctx, c); err != nil {
+		return fmt.Errorf("create competition: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (model.Competition, error) {
 	if id == uuid.Nil {
-		return model.Competition{}, ErrCompetitionNotFound
+		return model.Competition{}, ErrNotFound
 	}
 	return s.repo.GetByID(ctx, id)
 }
@@ -62,13 +64,13 @@ func (s *Service) JoinWithTradingAccount(
 	investorPassword string,
 ) error {
 	if competitionID == uuid.Nil {
-		return ErrCompetitionNotFound
+		return ErrNotFound
 	}
 	if userID == uuid.Nil {
 		return auth.ErrUnauthorized
 	}
 	if login <= 0 {
-		return ErrInvalidTradingAccountLogin
+		return ErrInvalidLogin
 	}
 	if broker == "" {
 		return ErrInvalidBroker
@@ -79,23 +81,18 @@ func (s *Service) JoinWithTradingAccount(
 
 	encrypted, err := crypto.EncryptString(s.cryptoKey, investorPassword)
 	if err != nil {
-		return err
+		return fmt.Errorf("encrypt password: %w", err)
 	}
 
 	return s.repo.JoinWithTradingAccount(ctx, competitionID, userID, login, broker, encrypted)
 }
 
-func (s *Service) UpdateAccountSize(
-	ctx context.Context,
-	competitionID uuid.UUID,
-	login int64,
-	accountSize float64,
-) error {
+func (s *Service) UpdateAccountSize(ctx context.Context, competitionID uuid.UUID, login int64, accountSize float64) error {
 	if competitionID == uuid.Nil {
-		return ErrCompetitionNotFound
+		return ErrNotFound
 	}
 	if login <= 0 {
-		return ErrInvalidTradingAccountLogin
+		return ErrInvalidLogin
 	}
 	if accountSize <= 0 {
 		return ErrInvalidAccountSize
@@ -109,12 +106,7 @@ const (
 	maxLeaderboardLimit     int32 = 200
 )
 
-func (s *Service) GetLeaderboard(
-	ctx context.Context,
-	competitionID uuid.UUID,
-	limit int32,
-	offset int32,
-) ([]model.LeaderboardEntry, error) {
+func (s *Service) GetLeaderboard(ctx context.Context, competitionID uuid.UUID, limit int32, offset int32) ([]model.LeaderboardEntry, error) {
 	if limit <= 0 {
 		limit = defaultLeaderboardLimit
 	}
@@ -130,9 +122,9 @@ func (s *Service) GetLeaderboard(
 		return nil, err
 	}
 
+	// Verify competition exists if no entries
 	if len(entries) == 0 {
-		_, err := s.repo.GetByID(ctx, competitionID)
-		if err != nil {
+		if _, err := s.repo.GetByID(ctx, competitionID); err != nil {
 			return nil, err
 		}
 	}
@@ -142,10 +134,10 @@ func (s *Service) GetLeaderboard(
 
 func (s *Service) InsertTrades(ctx context.Context, competitionID uuid.UUID, login int64, trades []model.Trade) error {
 	if competitionID == uuid.Nil {
-		return ErrCompetitionNotFound
+		return ErrNotFound
 	}
 	if login <= 0 {
-		return ErrInvalidTradingAccountLogin
+		return ErrInvalidLogin
 	}
 
 	size, err := s.repo.GetMemberAccountSize(ctx, competitionID, login)
@@ -156,31 +148,32 @@ func (s *Service) InsertTrades(ctx context.Context, competitionID uuid.UUID, log
 		return ErrAccountSizeNotSet
 	}
 
-	for i := range trades {
-		t := trades[i]
-		if t.PositionID <= 0 {
-			return ErrInvalidPositionID
-		}
-		if t.Symbol == "" {
-			return ErrInvalidSymbol
-		}
-		if t.Side == "" {
-			return ErrInvalidSide
-		}
-		if !t.CloseTime.After(t.OpenTime) {
-			return ErrInvalidTradeTimeRange
+	for i, t := range trades {
+		if err := validateTrade(t); err != nil {
+			return fmt.Errorf("trade[%d]: %w", i, err)
 		}
 	}
 
 	return s.repo.InsertTrades(ctx, competitionID, login, trades)
 }
 
-func (s *Service) GetUserCompetitionState(
-	ctx context.Context,
-	userID,
-	competitionID uuid.UUID,
-) (*dto.CompetitionUserStateResponse, error) {
+func validateTrade(t model.Trade) error {
+	if t.PositionID <= 0 {
+		return ErrInvalidPositionID
+	}
+	if t.Symbol == "" {
+		return ErrInvalidSymbol
+	}
+	if t.Side == "" {
+		return ErrInvalidSide
+	}
+	if !t.CloseTime.After(t.OpenTime) {
+		return ErrInvalidTradeTimeRange
+	}
+	return nil
+}
 
+func (s *Service) GetUserCompetitionState(ctx context.Context, userID, competitionID uuid.UUID) (*dto.CompetitionUserStateResponse, error) {
 	state, err := s.repo.GetUserCompetitionState(ctx, userID, competitionID)
 	if err != nil {
 		return nil, err
@@ -195,7 +188,7 @@ func (s *Service) GetUserCompetitionState(
 func (s *Service) GetCurrentCompetition(ctx context.Context) (*dto.CompetitionResponse, error) {
 	c, err := s.repo.GetCurrent(ctx)
 	if err != nil {
-		return nil, ErrCompetitionNotFound
+		return nil, err
 	}
 
 	return &dto.CompetitionResponse{
