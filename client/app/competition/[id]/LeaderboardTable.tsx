@@ -114,10 +114,13 @@ export default function LeaderboardTable({
     run();
 
     if (!ended) {
-      const t = setInterval(() => {
-        if (!alive) return;
-        run();
-      }, 60 * 1000);
+      const t = setInterval(
+        () => {
+          if (!alive) return;
+          run();
+        },
+        5 * 60 * 1000,
+      );
 
       return () => {
         alive = false;
