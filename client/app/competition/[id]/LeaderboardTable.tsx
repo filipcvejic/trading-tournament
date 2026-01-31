@@ -1,6 +1,7 @@
 "use client";
 
 import { webApi } from "@/app/lib/api/client";
+import { formatMoney } from "@/app/lib/format";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -134,7 +135,7 @@ export default function LeaderboardTable({
   }, [competitionId, ended]);
 
   const subtitle = useMemo(
-    () => (ended ? "Final results" : "Updates every minute"),
+    () => (ended ? "Final results" : "Updates every 5 minutes"),
     [ended],
   );
 
@@ -150,11 +151,11 @@ export default function LeaderboardTable({
           <thead>
             <tr className="text-left text-[#A1A1AA] border-b border-white/10">
               <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Account</th>
+              <th className="px-3 py-2">Name</th>
               <th className="px-3 py-2">Profit</th>
               <th className="px-3 py-2">Equity</th>
               <th className="px-3 py-2">Gain %</th>
+              <th className="px-3 py-2">Account size</th>
             </tr>
           </thead>
 
@@ -203,21 +204,19 @@ export default function LeaderboardTable({
                     <td className="px-3 py-2 font-medium text-[#BFDBFE]">
                       {r.username}
                     </td>
-                    <td className="px-3 py-2">
-                      ${r.accountSize.toLocaleString()}
-                    </td>
                     <td
                       className={`px-3 py-2 font-semibold ${pos ? "text-green-400" : "text-red-400"}`}
                     >
-                      {pos ? "+" : ""}${r.profit.toFixed(2)}
+                      {formatMoney(r.profit, { sign: true })}
                     </td>
-                    <td className="px-3 py-2">${r.equity.toFixed(2)}</td>
+                    <td className="px-3 py-2">{formatMoney(r.equity)}</td>
                     <td
                       className={`px-3 py-2 font-semibold ${pos ? "text-green-400" : "text-red-400"}`}
                     >
                       {pos ? "+" : ""}
                       {r.gainPercent.toFixed(2)}%
                     </td>
+                    <td className="px-3 py-2">{formatMoney(r.accountSize)}</td>
                   </tr>
                 );
               })

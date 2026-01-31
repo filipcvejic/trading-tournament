@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import LogoutButton from "@/app/components/LogoutButton";
 import BackButton from "@/app/components/BackButton";
+import { formatMoney } from "@/app/lib/format";
 
 type Side = "BUY" | "SELL";
 
@@ -34,8 +35,10 @@ type Trade = {
 
 type ApiResponse = {
   username: string;
-  trades: any[];
+  trades: any[]; // keep as-is (backend shape), we map safely
 };
+
+type Row = Trade & { total: number };
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -97,6 +100,38 @@ function Td({
   );
 }
 
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent: "blue" | "purple";
+}) {
+  const ring =
+    accent === "blue"
+      ? "from-[#60A5FA]/35 to-transparent"
+      : "from-[#A855F7]/35 to-transparent";
+
+  return (
+    <div className="relative rounded-xl border border-white/10 bg-white/5 px-3 py-2 overflow-hidden">
+      <div
+        className={[
+          "pointer-events-none absolute inset-0 bg-gradient-to-r",
+          ring,
+        ].join(" ")}
+      />
+      <div className="relative">
+        <div className="text-[11px] uppercase tracking-wide text-[#A1A1AA]">
+          {label}
+        </div>
+        <div className="mt-0.5 text-base font-semibold">{value}</div>
+      </div>
+    </div>
+  );
+}
+
 function mapTrade(t: any): Trade {
   return {
     id: t.positionId ?? t.id,
@@ -117,7 +152,7 @@ export default function TradingAccountTradeHistoryPage() {
   const params = useParams<{ accountId: string }>();
   const accountId = params.accountId;
 
-  const [username, setUsername] = useState<string>("");
+  const [username, setUsername] = useState("");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -158,41 +193,55 @@ export default function TradingAccountTradeHistoryPage() {
     };
   }, [accountId]);
 
-  const rows = useMemo(() => {
-    return [...trades]
-      .sort(
-        (a, b) =>
-          new Date(a.closeTime).getTime() - new Date(b.closeTime).getTime(),
-      )
-      .map((t) => ({
-        ...t,
-        total: t.profit + t.commission + t.swap,
-      }));
+  const rows: Row[] = useMemo(() => {
+    return trades.map((t) => ({
+      ...t,
+      total: t.profit + t.commission + t.swap,
+    }));
   }, [trades]);
 
   const chartData = useMemo(() => {
-    let equity = 0;
-    return rows.map((t) => {
-      equity += t.total;
-      return {
-        time: t.closeTime,
-        equity,
-      };
+    let cumPnl = 0;
+    return rows.map((t, i) => {
+      cumPnl += t.total;
+      return { i, time: t.closeTime, cumPnl };
     });
   }, [rows]);
 
-  const net = useMemo(
-    () => rows.reduce((sum, t: any) => sum + t.total, 0),
-    [rows],
-  );
+  const stats = useMemo(() => {
+    const net = rows.reduce((sum, t) => sum + t.total, 0);
+    const wins = rows.filter((t) => t.total > 0).length;
+    const winRate = rows.length ? (wins / rows.length) * 100 : 0;
+
+    const best = rows.reduce(
+      (m, t) => Math.max(m, t.total),
+      Number.NEGATIVE_INFINITY,
+    );
+    const worst = rows.reduce(
+      (m, t) => Math.min(m, t.total),
+      Number.POSITIVE_INFINITY,
+    );
+
+    return {
+      tradesCount: rows.length,
+      net,
+      winRate,
+      best: isFinite(best) ? best : 0,
+      worst: isFinite(worst) ? worst : 0,
+    };
+  }, [rows]);
+
+  const netIsPos = stats.net >= 0;
 
   return (
     <div className="min-h-screen bg-[#0B0C10] text-white">
-      {/* background glow */}
+      {/* top bar */}
       <div className="flex justify-between pt-4 px-4">
         <BackButton text="Back to competition" />
         <LogoutButton />
       </div>
+
+      {/* background glow */}
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-[#A855F7]/20 blur-3xl" />
         <div className="absolute -top-10 left-[55%] h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-[#60A5FA]/15 blur-3xl" />
@@ -201,7 +250,7 @@ export default function TradingAccountTradeHistoryPage() {
       <div className="relative mx-auto w-full max-w-6xl px-4 py-8 space-y-6">
         {/* Header */}
         <div className="rounded-2xl border border-white/10 bg-[#151621]/80 backdrop-blur px-6 py-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-1">
               <div className="text-xs text-[#A1A1AA]">
                 Trading account • Trade history
@@ -210,16 +259,30 @@ export default function TradingAccountTradeHistoryPage() {
                 {username ? `${username}'s Trade History` : "Trade History"}
               </h1>
               <p className="text-sm text-[#A1A1AA]">
-                Net PnL = profit + commission + swap
+                Net PnL = profit - commission - swap
               </p>
             </div>
-
-            <div className="text-sm sm:text-base font-semibold">
-              <span className="text-[#A1A1AA] mr-2">Net:</span>
-              <span className={net >= 0 ? "text-green-400" : "text-red-400"}>
-                {net >= 0 ? "+" : ""}
-                {money(net)}
-              </span>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat
+                label="Net PnL"
+                value={formatMoney(stats.net, { sign: true })}
+                accent={netIsPos ? "blue" : "purple"}
+              />
+              <Stat
+                label="Win rate"
+                value={`${stats.winRate.toFixed(0)}%`}
+                accent="blue"
+              />
+              <Stat
+                label="Best trade"
+                value={formatMoney(stats.best, { sign: true })}
+                accent="blue"
+              />
+              <Stat
+                label="Worst trade"
+                value={formatMoney(stats.worst)}
+                accent="purple"
+              />
             </div>
           </div>
         </div>
@@ -244,31 +307,39 @@ export default function TradingAccountTradeHistoryPage() {
               </div>
 
               <div className="relative">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Equity Curve</h2>
-                    <p className="text-xs text-[#A1A1AA]">
-                      Cumulative net profit by close time
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold">PnL Curve</h2>
+                  <p className="text-xs text-[#A1A1AA]">
+                    Cumulative net PnL by close time
+                  </p>
                 </div>
 
-                <div className="mt-4 h-[340px] sm:h-[440px]">
+                <div className="mt-4 h-[300px] sm:h-[420px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={chartData}
-                      margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                      margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid
                         strokeDasharray="4 4"
                         stroke="rgba(255,255,255,0.08)"
                       />
+
                       <XAxis
-                        dataKey="time"
-                        tickFormatter={(v) => new Date(v).toLocaleDateString()}
+                        dataKey="i"
+                        type="number"
+                        domain={[0, "dataMax"]}
+                        tickFormatter={(idx) => {
+                          const d = chartData[idx]?.time;
+                          return d ? new Date(d).toLocaleDateString() : "";
+                        }}
+                        padding={{ left: 10, right: 10 }}
                         stroke="rgba(255,255,255,0.55)"
                         tick={{ fontSize: 12 }}
+                        interval="preserveStartEnd"
+                        allowDataOverflow
                       />
+
                       <YAxis
                         tickFormatter={(v) => Number(v).toFixed(0)}
                         stroke="rgba(255,255,255,0.55)"
@@ -278,18 +349,23 @@ export default function TradingAccountTradeHistoryPage() {
                       <ReferenceLine y={0} stroke="rgba(255,255,255,0.22)" />
 
                       <Tooltip
+                        cursor={{
+                          stroke: "rgba(255,255,255,0.12)",
+                          strokeWidth: 1,
+                        }}
                         contentStyle={{
                           background: "#0B0C10",
                           border: "1px solid rgba(255,255,255,0.12)",
                           borderRadius: 14,
                           color: "white",
                         }}
-                        labelFormatter={(v) =>
-                          `Close: ${formatDateTime(String(v))}`
-                        }
+                        labelFormatter={(label) => {
+                          const d = chartData[Number(label)]?.time;
+                          return d ? `Close: ${formatDateTime(d)}` : "";
+                        }}
                         formatter={(value: any) => [
-                          money(Number(value)),
-                          "Equity",
+                          formatMoney(Number(value)),
+                          "Cumulative PnL",
                         ]}
                       />
 
@@ -316,13 +392,14 @@ export default function TradingAccountTradeHistoryPage() {
 
                       <Area
                         type="monotone"
-                        dataKey="equity"
+                        dataKey="cumPnl"
                         stroke="#60A5FA"
                         strokeWidth={2.2}
                         fill="url(#neonFill)"
                         fillOpacity={1}
                         dot={false}
                         activeDot={{ r: 4 }}
+                        isAnimationActive={false}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -335,7 +412,7 @@ export default function TradingAccountTradeHistoryPage() {
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Trades</h2>
                 <span className="text-xs text-[#A1A1AA]">
-                  {rows.length} trade{rows.length === 1 ? "" : "s"}
+                  {stats.tradesCount} trade{stats.tradesCount === 1 ? "" : "s"}
                 </span>
               </div>
 
@@ -366,8 +443,9 @@ export default function TradingAccountTradeHistoryPage() {
                         </td>
                       </tr>
                     ) : (
-                      rows.map((t: any) => {
+                      rows.map((t) => {
                         const isWin = t.total >= 0;
+
                         return (
                           <tr
                             key={t.id}
@@ -387,18 +465,17 @@ export default function TradingAccountTradeHistoryPage() {
                             </Td>
                             <Td className="text-white/90">{t.openPrice}</Td>
                             <Td className="text-white/90">{t.closePrice}</Td>
-
                             <Td
                               className={[
                                 "font-semibold",
                                 isWin ? "text-green-400" : "text-red-400",
                               ].join(" ")}
                             >
-                              {isWin ? "+" : ""}
-                              {money(t.total)}
+                              {formatMoney(t.total, { sign: true })}
                               <div className="text-[11px] font-normal text-[#A1A1AA]">
-                                p:{money(t.profit)} c:{money(t.commission)} s:
-                                {money(t.swap)}
+                                p:{formatMoney(t.profit)} c:
+                                {formatMoney(t.commission)} s:
+                                {formatMoney(t.swap)}
                               </div>
                             </Td>
                           </tr>
