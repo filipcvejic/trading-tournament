@@ -109,3 +109,20 @@ func (q *Queries) GetUsernameByTradingAccountLogin(ctx context.Context, login in
 	err := row.Scan(&username)
 	return username, err
 }
+
+const updatePasswordHash = `-- name: UpdatePasswordHash :exec
+UPDATE users
+SET password_hash = $2,
+    updated_at = now()
+WHERE id = $1
+`
+
+type UpdatePasswordHashParams struct {
+	ID           uuid.UUID `db:"id" json:"id"`
+	PasswordHash string    `db:"password_hash" json:"password_hash"`
+}
+
+func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error {
+	_, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
+	return err
+}

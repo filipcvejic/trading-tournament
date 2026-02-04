@@ -20,3 +20,8 @@ JOIN users u ON u.id = ta.user_id
 WHERE ta.login = $1
 LIMIT 1;
 
+-- name: UpdatePasswordHash :exec
+UPDATE users
+SET password_hash = $2,
+    updated_at = now()
+WHERE id = $1;
