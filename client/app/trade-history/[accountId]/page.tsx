@@ -1,7 +1,7 @@
 "use client";
 
 import { webApi } from "@/app/lib/api/client";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   ResponsiveContainer,
@@ -46,11 +46,6 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   })}`;
-}
-
-function money(n: number) {
-  const sign = n < 0 ? "-" : "";
-  return `${sign}${Math.abs(n).toFixed(2)}`;
 }
 
 function SideBadge({ side }: { side: Side }) {
@@ -148,6 +143,38 @@ function mapTrade(t: any): Trade {
   };
 }
 
+function PnlTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<any>;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const p = payload[0]?.payload as { time: string; cumPnl: number } | undefined;
+  if (!p) return null;
+
+  return (
+    <div
+      style={{
+        background: "#0B0C10",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 14,
+        padding: "10px 12px",
+        color: "white",
+      }}
+    >
+      <div style={{ fontSize: 12, opacity: 0.85 }}>
+        Close: {formatDateTime(p.time)}
+      </div>
+      <div style={{ marginTop: 4, fontWeight: 600 }}>
+        {formatMoney(Number(p.cumPnl), { sign: true })}
+      </div>
+    </div>
+  );
+}
+
 export default function TradingAccountTradeHistoryPage() {
   const params = useParams<{ accountId: string }>();
   const accountId = params.accountId;
@@ -156,6 +183,10 @@ export default function TradingAccountTradeHistoryPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ Makes tooltip easy to hide on mobile when tapping outside
+  const chartWrapRef = useRef<HTMLDivElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -193,6 +224,23 @@ export default function TradingAccountTradeHistoryPage() {
     };
   }, [accountId]);
 
+  // ✅ Hide tooltip when user taps/clicks outside the chart (fixes mobile "sticky" tooltip)
+  useEffect(() => {
+    function onGlobalPointerDown(e: PointerEvent) {
+      const wrap = chartWrapRef.current;
+      if (!wrap) return;
+
+      const target = e.target as Node | null;
+      if (!target) return;
+
+      if (!wrap.contains(target)) setActiveIndex(null);
+    }
+
+    document.addEventListener("pointerdown", onGlobalPointerDown);
+    return () =>
+      document.removeEventListener("pointerdown", onGlobalPointerDown);
+  }, []);
+
   const rows: Row[] = useMemo(() => {
     return trades.map((t) => ({
       ...t,
@@ -200,13 +248,20 @@ export default function TradingAccountTradeHistoryPage() {
     }));
   }, [trades]);
 
+  // Table is descending (backend already sends it like that), but chart must be ascending
+  const chartRows = useMemo(() => {
+    return rows.slice().reverse();
+  }, [rows]);
+
   const chartData = useMemo(() => {
     let cumPnl = 0;
-    return rows.map((t, i) => {
+    return chartRows.map((t, i) => {
       cumPnl += t.total;
       return { i, time: t.closeTime, cumPnl };
     });
-  }, [rows]);
+  }, [chartRows]);
+
+  const activePoint = activeIndex !== null ? chartData[activeIndex] : undefined;
 
   const stats = useMemo(() => {
     const net = rows.reduce((sum, t) => sum + t.total, 0);
@@ -262,6 +317,7 @@ export default function TradingAccountTradeHistoryPage() {
                 Net PnL = profit - commission - swap
               </p>
             </div>
+
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat
                 label="Net PnL"
@@ -314,11 +370,22 @@ export default function TradingAccountTradeHistoryPage() {
                   </p>
                 </div>
 
-                <div className="mt-4 h-[300px] sm:h-[420px]">
+                <div ref={chartWrapRef} className="mt-4 h-[300px] sm:h-[420px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={chartData}
                       margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+                      accessibilityLayer={false}
+                      // ✅ stable on mobile drag: always store the current point index
+                      onMouseMove={(state) => {
+                        const idx =
+                          typeof state?.activeTooltipIndex === "number"
+                            ? state.activeTooltipIndex
+                            : null;
+                        setActiveIndex(idx);
+                      }}
+                      // ✅ desktop: hide on leave
+                      onMouseLeave={() => setActiveIndex(null)}
                     >
                       <CartesianGrid
                         strokeDasharray="4 4"
@@ -328,6 +395,7 @@ export default function TradingAccountTradeHistoryPage() {
                       <XAxis
                         dataKey="i"
                         type="number"
+                        scale="linear"
                         domain={[0, "dataMax"]}
                         tickFormatter={(idx) => {
                           const d = chartData[idx]?.time;
@@ -337,7 +405,7 @@ export default function TradingAccountTradeHistoryPage() {
                         stroke="rgba(255,255,255,0.55)"
                         tick={{ fontSize: 12 }}
                         interval="preserveStartEnd"
-                        allowDataOverflow
+                        allowDuplicatedCategory={false}
                       />
 
                       <YAxis
@@ -349,24 +417,12 @@ export default function TradingAccountTradeHistoryPage() {
                       <ReferenceLine y={0} stroke="rgba(255,255,255,0.22)" />
 
                       <Tooltip
+                        content={<PnlTooltip />}
                         cursor={{
                           stroke: "rgba(255,255,255,0.12)",
                           strokeWidth: 1,
                         }}
-                        contentStyle={{
-                          background: "#0B0C10",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          borderRadius: 14,
-                          color: "white",
-                        }}
-                        labelFormatter={(label) => {
-                          const d = chartData[Number(label)]?.time;
-                          return d ? `Close: ${formatDateTime(d)}` : "";
-                        }}
-                        formatter={(value: any) => [
-                          formatMoney(Number(value)),
-                          "Cumulative PnL",
-                        ]}
+                        isAnimationActive={false}
                       />
 
                       <defs>
@@ -391,14 +447,14 @@ export default function TradingAccountTradeHistoryPage() {
                       </defs>
 
                       <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="cumPnl"
                         stroke="#60A5FA"
                         strokeWidth={2.2}
                         fill="url(#neonFill)"
                         fillOpacity={1}
                         dot={false}
-                        activeDot={{ r: 4 }}
+                        activeDot={{ r: 5 }}
                         isAnimationActive={false}
                       />
                     </AreaChart>

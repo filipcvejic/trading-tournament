@@ -101,23 +101,23 @@ func (s *Service) UpdateAccountSize(ctx context.Context, competitionID uuid.UUID
 	return s.repo.UpdateAccountSize(ctx, competitionID, login, accountSize)
 }
 
-const (
-	defaultLeaderboardLimit int32 = 50
-	maxLeaderboardLimit     int32 = 200
-)
+//const (
+//	defaultLeaderboardLimit int32 = 50
+//	maxLeaderboardLimit     int32 = 200
+//)
 
 func (s *Service) GetLeaderboard(ctx context.Context, competitionID uuid.UUID, limit int32, offset int32) ([]model.LeaderboardEntry, error) {
-	if limit <= 0 {
-		limit = defaultLeaderboardLimit
-	}
-	if limit > maxLeaderboardLimit {
-		limit = maxLeaderboardLimit
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	//if limit <= 0 {
+	//	limit = defaultLeaderboardLimit
+	//}
+	//if limit > maxLeaderboardLimit {
+	//	limit = maxLeaderboardLimit
+	//}
+	//if offset < 0 {
+	//	offset = 0
+	//}
 
-	entries, err := s.repo.GetLeaderboard(ctx, competitionID, limit, offset)
+	entries, err := s.repo.GetLeaderboard(ctx, competitionID, 100, 0)
 	if err != nil {
 		return nil, err
 	}
