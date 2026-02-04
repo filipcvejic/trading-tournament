@@ -73,6 +73,23 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	return s.generateAccessToken(user)
 }
 
+func (s *AuthService) ResetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error {
+	if userID == uuid.Nil {
+		return ErrInvalidToken
+	}
+
+	if newPassword == "" {
+		return ErrInvalidInput
+	}
+
+	hash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.userRepo.UpdatePasswordHash(ctx, userID, hash)
+}
+
 //func (s *AuthService) LoginWithRefresh(ctx context.Context, email, password string, refreshTokenTTL time.Duration) (accessToken string, refreshToken string, err error) {
 //	if email == "" || password == "" {
 //		return "", "", ErrInvalidInput

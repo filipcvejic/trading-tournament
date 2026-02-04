@@ -13,6 +13,7 @@ type Repository interface {
 	Create(ctx context.Context, email, username, discordUsername, passwordHash string) (User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetByEmail(ctx context.Context, email string) (User, error)
+	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, hash string) error
 }
 
 type PostgresRepository struct {
@@ -84,4 +85,11 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 	}, nil
+}
+
+func (r *PostgresRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, hash string) error {
+	return r.db.Query.UpdatePasswordHash(ctx, sqlc.UpdatePasswordHashParams{
+		ID:           userID,
+		PasswordHash: hash,
+	})
 }

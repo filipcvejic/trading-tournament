@@ -8,7 +8,6 @@ type CreateUserRequest struct {
 	DiscordUsername string `json:"discordUsername"`
 	Password        string `json:"password"`
 }
-
 type UserResponse struct {
 	ID              string    `json:"id"`
 	Email           string    `json:"email"`

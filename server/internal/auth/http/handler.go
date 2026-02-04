@@ -7,6 +7,7 @@ import (
 	"github.com/filipcvejic/trading_tournament/internal/httputil"
 	"github.com/filipcvejic/trading_tournament/internal/validation"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"time"
@@ -28,6 +29,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		//r.Post("/login-with-refresh", h.LoginWithRefresh)
 		//r.Post("/refresh", h.Refresh)
 		r.Post("/logout", h.Logout)
+		r.Patch("/{userID}/reset-password", h.resetPassword)
 
 		// protected
 		r.Group(func(r chi.Router) {
@@ -181,4 +183,26 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, user)
+}
+
+func (h *Handler) resetPassword(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "userID")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
+	var req auth.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.ResetPassword(r.Context(), userID, req.NewPassword); err != nil {
+		writeDomainError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
