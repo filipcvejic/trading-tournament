@@ -167,7 +167,7 @@ func validateTrade(t model.Trade) error {
 	if t.Side == "" {
 		return ErrInvalidSide
 	}
-	if !t.CloseTime.After(t.OpenTime) {
+	if t.CloseTime.Before(t.OpenTime) {
 		return ErrInvalidTradeTimeRange
 	}
 	return nil
