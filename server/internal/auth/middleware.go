@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"github.com/filipcvejic/trading_tournament/internal/user"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"log"
@@ -14,11 +15,11 @@ type contextKey string
 
 const (
 	UserIDKey contextKey = "userID"
+	RoleKey   contextKey = "role"
 )
 
 func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		cookie, err := r.Cookie("access_token")
 		if err != nil {
 			log.Println("AUTH: missing access_token cookie:", err)
@@ -75,8 +76,41 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		roleStr, ok := claims["role"].(string)
+		if !ok || roleStr == "" {
+			log.Println("AUTH: missing/invalid role claim:", claims["role"])
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		role := user.Role(roleStr)
+		if role != user.RoleUser && role != user.RoleAdmin {
+			log.Println("AUTH: invalid role value:", roleStr)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx = context.WithValue(ctx, RoleKey, role)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, ok := GetUserRole(r)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if role != user.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -84,6 +118,11 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 func GetUserID(r *http.Request) (uuid.UUID, bool) {
 	userID, ok := r.Context().Value(UserIDKey).(uuid.UUID)
 	return userID, ok
+}
+
+func GetUserRole(r *http.Request) (user.Role, bool) {
+	role, ok := r.Context().Value(RoleKey).(user.Role)
+	return role, ok
 }
 
 //func AuthenticationMiddleware(authService *AuthService) func(http.Handler) http.Handler {

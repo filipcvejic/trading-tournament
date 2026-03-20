@@ -34,7 +34,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		// protected
 		r.Group(func(r chi.Router) {
 			r.Use(auth.AuthenticationMiddleware)
-			r.Get("/me", h.me)
+			//r.Get("/me", h.me)
+
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(auth.RequireAdmin)
+
+				r.Get("/me", h.me)
+			})
 		})
 	})
 }
