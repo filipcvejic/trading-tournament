@@ -82,6 +82,7 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User
 		Username:        row.Username,
 		DiscordUsername: row.DiscordUsername,
 		PasswordHash:    row.PasswordHash,
+		Role:            Role(row.Role),
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 	}, nil
