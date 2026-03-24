@@ -15,10 +15,10 @@ const SYMBOL_MAP: Record<"EURUSD" | "GBPUSD" | "XAUUSD", string> = {
 export async function getTwelveCandles(
   rawSymbol: "EURUSD" | "GBPUSD" | "XAUUSD",
 ): Promise<Candle[]> {
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_TWELVE_DATA_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing TWELVE_DATA_API_KEY");
+    throw new Error("Missing NEXT_PUBLIC_TWELVE_DATA_API_KEY");
   }
 
   const symbol = SYMBOL_MAP[rawSymbol];
