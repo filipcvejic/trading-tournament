@@ -18,7 +18,7 @@ async function fetchTrackedTrades(): Promise<Trade[]> {
       redirect("/competition");
     }
 
-    throw err;
+    return [];
   }
 }
 
