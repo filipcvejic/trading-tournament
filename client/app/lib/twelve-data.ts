@@ -15,45 +15,51 @@ const SYMBOL_MAP: Record<"EURUSD" | "GBPUSD" | "XAUUSD", string> = {
 export async function getTwelveCandles(
   rawSymbol: "EURUSD" | "GBPUSD" | "XAUUSD",
 ): Promise<Candle[]> {
-  return [];
-  //   const apiKey = process.env.TWELVE_DATA_API_KEY;
+  const apiKey = process.env.TWELVE_DATA_API_KEY;
 
-  //   if (!apiKey) {
-  //     throw new Error("Missing TWELVE_DATA_API_KEY");
-  //   }
+  console.log("[twelve] symbol:", rawSymbol);
+  console.log("[twelve] api key exists:", Boolean(apiKey));
 
-  //   const symbol = SYMBOL_MAP[rawSymbol];
+  if (!apiKey) {
+    throw new Error("Missing TWELVE_DATA_API_KEY");
+  }
 
-  //   const url = new URL("https://api.twelvedata.com/time_series");
-  //   url.searchParams.set("symbol", symbol);
-  //   url.searchParams.set("interval", "5min");
-  //   url.searchParams.set("outputsize", "180");
-  //   url.searchParams.set("timezone", "UTC");
-  //   url.searchParams.set("format", "JSON");
+  const symbol = SYMBOL_MAP[rawSymbol];
 
-  //   const response = await fetch(url.toString(), {
-  //     headers: {
-  //       Authorization: `apikey ${apiKey}`,
-  //     },
-  //     cache: "no-store",
-  //   });
+  const url = new URL("https://api.twelvedata.com/time_series");
+  url.searchParams.set("symbol", symbol);
+  url.searchParams.set("interval", "5min");
+  url.searchParams.set("outputsize", "180");
+  url.searchParams.set("timezone", "UTC");
+  url.searchParams.set("format", "JSON");
 
-  //   const data = await response.json();
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `apikey ${apiKey}`,
+    },
+    cache: "no-store",
+  });
 
-  //   if (!response.ok || data.status === "error") {
-  //     throw new Error(`TwelveData ${rawSymbol} failed: ${JSON.stringify(data)}`);
-  //   }
+  const data = await response.json();
 
-  //   const values = Array.isArray(data.values) ? data.values : [];
+  console.log("[twelve] rawSymbol:", rawSymbol);
+  console.log("[twelve] status:", response.status);
+  console.log("[twelve] data:", JSON.stringify(data));
 
-  //   return values
-  //     .slice()
-  //     .reverse()
-  //     .map((c: any) => ({
-  //       time: Math.floor(new Date(`${c.datetime}Z`).getTime() / 1000),
-  //       open: Number(c.open),
-  //       high: Number(c.high),
-  //       low: Number(c.low),
-  //       close: Number(c.close),
-  //     }));
+  if (!response.ok || data.status === "error") {
+    throw new Error(`TwelveData ${rawSymbol} failed: ${JSON.stringify(data)}`);
+  }
+
+  const values = Array.isArray(data.values) ? data.values : [];
+
+  return values
+    .slice()
+    .reverse()
+    .map((c: any) => ({
+      time: Math.floor(new Date(`${c.datetime}Z`).getTime() / 1000),
+      open: Number(c.open),
+      high: Number(c.high),
+      low: Number(c.low),
+      close: Number(c.close),
+    }));
 }
