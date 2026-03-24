@@ -1,28 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+export type Candle = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
 
-const SYMBOL_MAP: Record<string, string> = {
+const SYMBOL_MAP: Record<"EURUSD" | "GBPUSD" | "XAUUSD", string> = {
   EURUSD: "EUR/USD",
   GBPUSD: "GBP/USD",
   XAUUSD: "XAU/USD",
 };
 
-export async function GET(req: NextRequest) {
+export async function getTwelveCandles(
+  rawSymbol: "EURUSD" | "GBPUSD" | "XAUUSD",
+): Promise<Candle[]> {
   const apiKey = process.env.TWELVE_DATA_API_KEY;
 
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "Missing TWELVE_DATA_API_KEY" },
-      { status: 500 },
-    );
+    throw new Error("Missing TWELVE_DATA_API_KEY");
   }
 
-  const { searchParams } = new URL(req.url);
-  const rawSymbol = (searchParams.get("symbol") || "").toUpperCase();
   const symbol = SYMBOL_MAP[rawSymbol];
-
-  if (!symbol) {
-    return NextResponse.json({ error: "Unsupported symbol" }, { status: 400 });
-  }
 
   const url = new URL("https://api.twelvedata.com/time_series");
   url.searchParams.set("symbol", symbol);
@@ -41,18 +40,12 @@ export async function GET(req: NextRequest) {
   const data = await response.json();
 
   if (!response.ok || data.status === "error") {
-    return NextResponse.json(
-      {
-        error: "Failed to fetch Twelve Data candles",
-        details: data,
-      },
-      { status: 500 },
-    );
+    throw new Error(`TwelveData ${rawSymbol} failed: ${JSON.stringify(data)}`);
   }
 
   const values = Array.isArray(data.values) ? data.values : [];
 
-  const candles = values
+  return values
     .slice()
     .reverse()
     .map((c: any) => ({
@@ -62,9 +55,4 @@ export async function GET(req: NextRequest) {
       low: Number(c.low),
       close: Number(c.close),
     }));
-
-  return NextResponse.json({
-    symbol: rawSymbol,
-    candles,
-  });
 }

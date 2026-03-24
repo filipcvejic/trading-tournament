@@ -1,31 +1,9 @@
 import { redirect } from "next/navigation";
 import TrackedChart, {
-  type Candle,
   type Trade,
 } from "../../components/trading/TrackedChart";
 import { getServerApi } from "@/app/lib/api/server";
-
-async function fetchCandles(
-  symbol: "EURUSD" | "GBPUSD" | "XAUUSD",
-): Promise<Candle[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-  const res = await fetch(`${baseUrl}/api/twelve-candles?symbol=${symbol}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(
-      err?.error
-        ? `${err.error}: ${JSON.stringify(err.details ?? {})}`
-        : `Failed to fetch candles for ${symbol}`,
-    );
-  }
-
-  const data = await res.json();
-  return data.candles;
-}
+import { getTwelveCandles } from "@/app/lib/twelve-data";
 
 async function fetchTrackedTrades(): Promise<Trade[]> {
   const api = await getServerApi();
@@ -47,9 +25,9 @@ async function fetchTrackedTrades(): Promise<Trade[]> {
 export default async function TrackedTradesPage() {
   const [eurusdCandles, gbpusdCandles, xauusdCandles, trackedTrades] =
     await Promise.all([
-      fetchCandles("EURUSD"),
-      fetchCandles("GBPUSD"),
-      fetchCandles("XAUUSD"),
+      getTwelveCandles("EURUSD"),
+      getTwelveCandles("GBPUSD"),
+      getTwelveCandles("XAUUSD"),
       fetchTrackedTrades(),
     ]);
 
