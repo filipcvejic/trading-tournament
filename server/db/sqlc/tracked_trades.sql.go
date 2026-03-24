@@ -74,6 +74,7 @@ SELECT
     side,
     open_price,
     stop_loss,
+    volume,
     opened_at,
     closed_at
 FROM tracked_trades
@@ -86,6 +87,7 @@ type ListTrackedTradesRow struct {
 	Side       string     `db:"side" json:"side"`
 	OpenPrice  float64    `db:"open_price" json:"open_price"`
 	StopLoss   *float64   `db:"stop_loss" json:"stop_loss"`
+	Volume     float64    `db:"volume" json:"volume"`
 	OpenedAt   time.Time  `db:"opened_at" json:"opened_at"`
 	ClosedAt   *time.Time `db:"closed_at" json:"closed_at"`
 }
@@ -105,6 +107,7 @@ func (q *Queries) ListTrackedTrades(ctx context.Context) ([]ListTrackedTradesRow
 			&i.Side,
 			&i.OpenPrice,
 			&i.StopLoss,
+			&i.Volume,
 			&i.OpenedAt,
 			&i.ClosedAt,
 		); err != nil {

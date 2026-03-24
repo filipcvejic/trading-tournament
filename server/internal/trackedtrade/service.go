@@ -32,6 +32,7 @@ func (s *Service) IngestEvent(ctx context.Context, req IngestTrackedTradeEventRe
 			Symbol:     req.Symbol,
 			Side:       side,
 			OpenPrice:  req.OpenPrice,
+			Volume:     req.Volume,
 			StopLoss:   req.StopLoss,
 			OpenedAt:   *req.OpenedAt,
 		}

@@ -60,5 +60,20 @@ func (h *Handler) List(w nethttp.ResponseWriter, r *nethttp.Request) {
 		return
 	}
 
-	httputil.WriteJSON(w, nethttp.StatusOK, trades)
+	response := make([]trackedtrade.TrackedTradeResponse, 0, len(trades))
+
+	for _, t := range trades {
+		response = append(response, trackedtrade.TrackedTradeResponse{
+			PositionID: t.PositionID,
+			Symbol:     t.Symbol,
+			Side:       string(t.Side),
+			OpenPrice:  t.OpenPrice,
+			Volume:     t.Volume,
+			StopLoss:   t.StopLoss,
+			OpenedAt:   t.OpenedAt,
+			ClosedAt:   t.ClosedAt,
+		})
+	}
+
+	httputil.WriteJSON(w, nethttp.StatusOK, response)
 }
