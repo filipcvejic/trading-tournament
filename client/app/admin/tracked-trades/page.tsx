@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import TrackedChart, {
   type Candle,
   type Trade,
@@ -28,14 +29,19 @@ async function fetchCandles(
 
 async function fetchTrackedTrades(): Promise<Trade[]> {
   const api = await getServerApi();
+  try {
+    const { data } = await api.get("/admin/tracked-trades");
 
-  const { data } = await api.get("/admin/tracked-trades");
+    if (Array.isArray(data)) {
+      return data;
+    }
+  } catch (err: any) {
+    if (err.response?.status === 403) {
+      redirect("/competition");
+    }
 
-  if (Array.isArray(data)) {
-    return data;
+    throw err;
   }
-
-  throw new Error("Unexpected tracked trades response shape");
 }
 
 export default async function TrackedTradesPage() {
@@ -46,8 +52,6 @@ export default async function TrackedTradesPage() {
       fetchCandles("XAUUSD"),
       fetchTrackedTrades(),
     ]);
-
-  console.log(trackedTrades);
 
   return (
     <main
