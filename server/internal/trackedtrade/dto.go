@@ -16,6 +16,7 @@ type IngestTrackedTradeEventRequest struct {
 	Side       string     `json:"side,omitempty"`
 	OpenPrice  float64    `json:"openPrice,omitempty"`
 	StopLoss   *float64   `json:"stopLoss,omitempty"`
+	Volume     float64    `json:"volume,omitempty"`
 	OpenedAt   *time.Time `json:"openedAt,omitempty"`
 	ClosedAt   *time.Time `json:"closedAt,omitempty"`
 }

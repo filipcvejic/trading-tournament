@@ -29,15 +29,25 @@ func (r *PostgresRepository) Create(ctx context.Context, trade TrackedTrade) err
 		Side:       string(trade.Side),
 		OpenPrice:  trade.OpenPrice,
 		StopLoss:   trade.StopLoss,
+		Volume:     trade.Volume,
 		OpenedAt:   trade.OpenedAt,
 	})
 }
 
 func (r *PostgresRepository) Close(ctx context.Context, positionID int64, closedAt time.Time) error {
-	return r.db.Query.CloseTrackedTrade(ctx, sqlc.CloseTrackedTradeParams{
+	rowsAffected, err := r.db.Query.CloseTrackedTrade(ctx, sqlc.CloseTrackedTradeParams{
 		PositionID: positionID,
 		ClosedAt:   &closedAt,
 	})
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrTradeNotFound
+	}
+
+	return nil
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]TrackedTrade, error) {

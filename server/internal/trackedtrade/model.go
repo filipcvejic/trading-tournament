@@ -14,6 +14,7 @@ type TrackedTrade struct {
 	Symbol     string
 	Side       Side
 	OpenPrice  float64
+	Volume     float64
 	StopLoss   *float64
 	OpenedAt   time.Time
 	ClosedAt   *time.Time

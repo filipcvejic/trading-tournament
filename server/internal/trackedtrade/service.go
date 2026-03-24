@@ -18,7 +18,7 @@ func NewService(repository Repository) *Service {
 func (s *Service) IngestEvent(ctx context.Context, req IngestTrackedTradeEventRequest) error {
 	switch req.EventType {
 	case EventTypeOpen:
-		if req.PositionID == 0 || req.Symbol == "" || req.Side == "" || req.OpenPrice == 0 || req.OpenedAt == nil {
+		if req.PositionID == 0 || req.Symbol == "" || req.Side == "" || req.OpenPrice == 0 || req.Volume <= 0 || req.OpenedAt == nil {
 			return ErrMissingOpenFields
 		}
 
