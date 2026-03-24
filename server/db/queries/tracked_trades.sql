@@ -24,6 +24,7 @@ SELECT
     side,
     open_price,
     stop_loss,
+    volume,
     opened_at,
     closed_at
 FROM tracked_trades

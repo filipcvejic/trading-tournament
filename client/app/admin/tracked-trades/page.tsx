@@ -29,7 +29,6 @@ async function fetchCandles(
 
 async function fetchTrackedTrades(): Promise<Trade[]> {
   const api = await getServerApi();
-
   try {
     const { data } = await api.get("/admin/tracked-trades");
 
@@ -53,8 +52,6 @@ export default async function TrackedTradesPage() {
       fetchCandles("XAUUSD"),
       fetchTrackedTrades(),
     ]);
-
-  console.log(trackedTrades);
 
   return (
     <main

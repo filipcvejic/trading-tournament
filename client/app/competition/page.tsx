@@ -10,16 +10,12 @@ export default async function CompetitionEntryPage() {
     const { data } = await api.get("/competitions/current");
     redirect(`/competition/${data.id}`);
   } catch (err: any) {
-    // Ako je redirect error, pusti ga da prođe (NE LOGUJ)
     if (err?.digest?.startsWith?.("NEXT_REDIRECT")) {
       throw err;
     }
 
-    // Ako je Axios error i 404 => fallback UI, bez loga
     if (axios.isAxiosError(err) && err.response?.status === 404) {
-      // show fallback UI below
     } else {
-      // Ostalo: loguj
       console.error("Failed to load current competition:", err);
     }
   }

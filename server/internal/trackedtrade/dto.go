@@ -20,3 +20,14 @@ type IngestTrackedTradeEventRequest struct {
 	OpenedAt   *time.Time `json:"openedAt,omitempty"`
 	ClosedAt   *time.Time `json:"closedAt,omitempty"`
 }
+
+type TrackedTradeResponse struct {
+	PositionID int64      `json:"positionId"`
+	Symbol     string     `json:"symbol"`
+	Side       string     `json:"side"`
+	OpenPrice  float64    `json:"openPrice"`
+	Volume     float64    `json:"volume"`
+	StopLoss   *float64   `json:"stopLoss"`
+	OpenedAt   time.Time  `json:"openedAt"`
+	ClosedAt   *time.Time `json:"closedAt"`
+}

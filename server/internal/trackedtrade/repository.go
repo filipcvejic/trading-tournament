@@ -64,6 +64,7 @@ func (r *PostgresRepository) List(ctx context.Context) ([]TrackedTrade, error) {
 			Side:       Side(row.Side),
 			OpenPrice:  row.OpenPrice,
 			StopLoss:   row.StopLoss,
+			Volume:     row.Volume,
 			OpenedAt:   row.OpenedAt,
 			ClosedAt:   row.ClosedAt,
 		})
