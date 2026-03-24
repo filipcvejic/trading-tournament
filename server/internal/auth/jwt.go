@@ -14,6 +14,7 @@ func (s *AuthService) generateAccessToken(user user.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":   user.ID.String(),
 		"email": user.Email,
+		"role":  user.Role,
 		"exp":   expirationTime.Unix(),
 		"iat":   now.Unix(),
 	}

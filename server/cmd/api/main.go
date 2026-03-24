@@ -6,6 +6,8 @@ import (
 	authhttp "github.com/filipcvejic/trading_tournament/internal/auth/http"
 	"github.com/filipcvejic/trading_tournament/internal/competition"
 	competitionhttp "github.com/filipcvejic/trading_tournament/internal/competition/http"
+	"github.com/filipcvejic/trading_tournament/internal/trackedtrade"
+	trackedtradehttp "github.com/filipcvejic/trading_tournament/internal/trackedtrade/http"
 	"github.com/filipcvejic/trading_tournament/internal/tradingaccount"
 	tradingaccounthttp "github.com/filipcvejic/trading_tournament/internal/tradingaccount/http"
 	"github.com/filipcvejic/trading_tournament/internal/user"
@@ -58,6 +60,10 @@ func main() {
 	authService := auth.NewAuthService(userRepo, refreshTokenRepo, os.Getenv("JWT_SECRET"), 15)
 	authHandler := authhttp.NewHandler(authService, 60)
 
+	trackedTradeRepo := trackedtrade.NewPostgresRepository(database)
+	trackedTradeService := trackedtrade.NewService(trackedTradeRepo)
+	trackedTradeHandler := trackedtradehttp.NewHandler(trackedTradeService)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -79,6 +85,7 @@ func main() {
 	userHandler.RegisterRoutes(r)
 	tradingAccountHandler.RegisterRoutes(r)
 	authHandler.RegisterRoutes(r)
+	trackedTradeHandler.RegisterRoutes(r)
 
 	log.Println("listening on :8080")
 	if err := http.ListenAndServe(":8080", r); err != nil {
