@@ -39,6 +39,13 @@ func (s *Service) IngestEvent(ctx context.Context, req IngestTrackedTradeEventRe
 
 		return s.repository.Create(ctx, trade)
 
+	case EventTypeUpdate:
+		if req.PositionID == 0 {
+			return ErrMissingUpdateFields
+		}
+
+		return s.repository.UpdateStopLoss(ctx, req.PositionID, req.StopLoss)
+
 	case EventTypeClose:
 		if req.PositionID == 0 || req.ClosedAt == nil {
 			return ErrMissingCloseFields

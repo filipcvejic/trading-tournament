@@ -120,3 +120,22 @@ func (q *Queries) ListTrackedTrades(ctx context.Context) ([]ListTrackedTradesRow
 	}
 	return items, nil
 }
+
+const updateTrackedTradeStopLoss = `-- name: UpdateTrackedTradeStopLoss :execrows
+UPDATE tracked_trades
+SET stop_loss = $2
+WHERE position_id = $1
+`
+
+type UpdateTrackedTradeStopLossParams struct {
+	PositionID int64    `db:"position_id" json:"position_id"`
+	StopLoss   *float64 `db:"stop_loss" json:"stop_loss"`
+}
+
+func (q *Queries) UpdateTrackedTradeStopLoss(ctx context.Context, arg UpdateTrackedTradeStopLossParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateTrackedTradeStopLoss, arg.PositionID, arg.StopLoss)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

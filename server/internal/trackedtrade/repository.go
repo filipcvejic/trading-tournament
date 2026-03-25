@@ -10,6 +10,7 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, trade TrackedTrade) error
+	UpdateStopLoss(ctx context.Context, positionID int64, stopLoss *float64) error
 	Close(ctx context.Context, positionID int64, closedAt time.Time) error
 	List(ctx context.Context) ([]TrackedTrade, error)
 }
@@ -71,4 +72,20 @@ func (r *PostgresRepository) List(ctx context.Context) ([]TrackedTrade, error) {
 	}
 
 	return trades, nil
+}
+
+func (r *PostgresRepository) UpdateStopLoss(ctx context.Context, positionID int64, stopLoss *float64) error {
+	rowsAffected, err := r.db.Query.UpdateTrackedTradeStopLoss(ctx, sqlc.UpdateTrackedTradeStopLossParams{
+		PositionID: positionID,
+		StopLoss:   stopLoss,
+	})
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrTradeNotFound
+	}
+
+	return nil
 }

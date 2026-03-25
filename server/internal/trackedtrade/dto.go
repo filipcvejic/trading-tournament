@@ -5,12 +5,13 @@ import "time"
 type EventType string
 
 const (
-	EventTypeOpen  EventType = "OPEN"
-	EventTypeClose EventType = "CLOSE"
+	EventTypeOpen   EventType = "OPEN"
+	EventTypeUpdate EventType = "UPDATE"
+	EventTypeClose  EventType = "CLOSE"
 )
 
 type IngestTrackedTradeEventRequest struct {
-	EventType  EventType  `json:"eventType" validate:"required,oneof=OPEN CLOSE"`
+	EventType  EventType  `json:"eventType" validate:"required,oneof=OPEN UPDATE CLOSE"`
 	PositionID int64      `json:"positionId" validate:"required"`
 	Symbol     string     `json:"symbol,omitempty"`
 	Side       string     `json:"side,omitempty"`

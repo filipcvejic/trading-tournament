@@ -29,3 +29,8 @@ SELECT
     closed_at
 FROM tracked_trades
 ORDER BY opened_at ASC;
+
+-- name: UpdateTrackedTradeStopLoss :execrows
+UPDATE tracked_trades
+SET stop_loss = $2
+WHERE position_id = $1;
