@@ -84,7 +84,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    access,
 		Path:     "/",
-		MaxAge:   60 * 60 * 24,
+		MaxAge:   60 * 60 * 24 * 7,
 		HttpOnly: true,
 	}
 
